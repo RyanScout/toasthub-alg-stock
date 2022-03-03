@@ -31,7 +31,7 @@ import org.toasthub.common.Functions;
 import net.jacobpeterson.alpaca.model.endpoint.marketdata.stock.historical.bar.StockBar;
 
 @Entity
-@Table(name = "tb_LBB")
+@Table(name = "sa_LBB")
 //Lower Bollinger Band
 public class LBB extends BaseAlg{
 
@@ -46,6 +46,7 @@ public class LBB extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
+		this.setIdentifier("LBB");
 	}
 
 	public LBB(String stock) {
@@ -55,6 +56,7 @@ public class LBB extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
+		this.setIdentifier("LBB");
 	}
 
 	public LBB(String code, Boolean defaultLang, String dir){
@@ -62,28 +64,23 @@ public class LBB extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
-		
+		this.setIdentifier("LBB");
 	}
 
 	public void initializer(List<StockBar> stockBars, int period){
 		setType(period+"-period");
 		setStockBars(stockBars.subList(stockBars.size()-period, stockBars.size()));
-		setMinute(stockBars.get(stockBars.size()-1).getTimestamp().getMinute());
-		setHour(stockBars.get(stockBars.size()-1).getTimestamp().getHour());
-		setDay(stockBars.get(stockBars.size()-1).getTimestamp().getDayOfMonth());
-		setMonth(stockBars.get(stockBars.size()-1).getTimestamp().getMonthValue());
-		setYear(stockBars.get(stockBars.size()-1).getTimestamp().getYear());
 		setEpochSeconds((long)stockBars.get(stockBars.size()-1).getTimestamp().toEpochSecond());
 	}
 
-	public static BigDecimal calculateLBB(List<StockBar> stockBars) {
-        BigDecimal sma = SMA.calculateSMA(stockBars);
-        sma = sma.subtract(Functions.calculateSD(stockBars));
-        return sma.subtract(Functions.calculateSD(stockBars));
+	public static BigDecimal calculateLBB(List<BigDecimal> list) {
+        BigDecimal sma = SMA.calculateSMA(list);
+        sma = sma.subtract(Functions.calculateSD(list));
+        return sma.subtract(Functions.calculateSD(list));
     }
 
-	public static BigDecimal calculateLBB(List<StockBar> stockBars, BigDecimal sma) {
-        sma = sma.subtract(Functions.calculateSD(stockBars));
-        return sma.subtract(Functions.calculateSD(stockBars));
+	public static BigDecimal calculateLBB(List<BigDecimal> list, BigDecimal sma) {
+        sma = sma.subtract(Functions.calculateSD(list));
+        return sma.subtract(Functions.calculateSD(list));
     }
 }

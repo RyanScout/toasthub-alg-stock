@@ -28,10 +28,8 @@ import java.util.List;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 
-import net.jacobpeterson.alpaca.model.endpoint.marketdata.stock.historical.bar.StockBar;
-
 @Entity
-@Table(name = "tb_SMA")
+@Table(name = "sa_SMA")
 //Simple Moving Average
 public class SMA extends BaseAlg{
 
@@ -46,6 +44,7 @@ public class SMA extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
+		this.setIdentifier("SMA");
 	}
 
 	public SMA(String stock){
@@ -55,6 +54,7 @@ public class SMA extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
+		this.setIdentifier("SMA");
 	}
 
 	public SMA(String code, Boolean defaultLang, String dir){
@@ -62,23 +62,13 @@ public class SMA extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
-		
-	}
-	public void initializer(List<StockBar> stockBars, int period){
-		setType(period + "-period");
-		setStockBars(stockBars.subList(stockBars.size()-period, stockBars.size()));
-		setMinute(stockBars.get(stockBars.size()-1).getTimestamp().getMinute());
-		setHour(stockBars.get(stockBars.size()-1).getTimestamp().getHour());
-		setDay(stockBars.get(stockBars.size()-1).getTimestamp().getDayOfMonth());
-		setMonth(stockBars.get(stockBars.size()-1).getTimestamp().getMonthValue());
-		setYear(stockBars.get(stockBars.size()-1).getTimestamp().getYear());
-		setEpochSeconds((long)stockBars.get(stockBars.size()-1).getTimestamp().toEpochSecond());
+		this.setIdentifier("SMA");
 	}
 
-	public static BigDecimal calculateSMA(List<StockBar> stockBars) {
+	public static BigDecimal calculateSMA(List<BigDecimal> list) {
         BigDecimal sma = BigDecimal.ZERO;
-        for (int i = 0; i < stockBars.size(); i++)
-        sma = sma.add(BigDecimal.valueOf(stockBars.get(i).getClose()));
-        return sma.divide(BigDecimal.valueOf(stockBars.size()), MathContext.DECIMAL32);
+        for (int i = 0; i < list.size(); i++)
+        sma = sma.add(list.get(i));
+        return sma.divide( new BigDecimal(list.size()) , MathContext.DECIMAL32);
     }
 }

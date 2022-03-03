@@ -9,6 +9,8 @@ public interface AlgorithmCruncherSvc {
 	public void delete(Request request, Response response);
 	public void item(Request request, Response response);
 	public void items(Request request, Response response);
-	public void backload(Request request, Response response);
-	public void load();
+	public void backloadAlgs(Request request, Response response);
+	public void backloadStockData(Request request, Response response);
+	public void loadStockData(Request request, Response response);
+	public void loadAlgs(Request request, Response response);
 }

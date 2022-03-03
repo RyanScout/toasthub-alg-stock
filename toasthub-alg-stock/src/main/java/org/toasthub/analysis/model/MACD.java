@@ -30,7 +30,7 @@ import javax.persistence.Table;
 import net.jacobpeterson.alpaca.model.endpoint.marketdata.stock.historical.bar.StockBar;
 
 @Entity
-@Table(name = "tb_MACD")
+@Table(name = "sa_MACD")
 //Moving Average Convergence/Divergence Indicator
 public class MACD extends BaseAlg{
 
@@ -45,6 +45,7 @@ public class MACD extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
+		this.setIdentifier("MACD");
 	}
 
 	public MACD(String stock) {
@@ -54,6 +55,7 @@ public class MACD extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
+		this.setIdentifier("MACD");
 	}
 
 	public MACD(String code, Boolean defaultLang, String dir){
@@ -61,25 +63,20 @@ public class MACD extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
-		
+		this.setIdentifier("MACD");
 	}
 
 	public void initializer(List<StockBar> stockBars){
 		setType("MACD");
 		setStockBars(stockBars);
-		setMinute(stockBars.get(stockBars.size()-1).getTimestamp().getMinute());
-		setHour(stockBars.get(stockBars.size()-1).getTimestamp().getHour());
-		setDay(stockBars.get(stockBars.size()-1).getTimestamp().getDayOfMonth());
-		setMonth(stockBars.get(stockBars.size()-1).getTimestamp().getMonthValue());
-		setYear(stockBars.get(stockBars.size()-1).getTimestamp().getYear());
 		setEpochSeconds((long)stockBars.get(stockBars.size()-1).getTimestamp().toEpochSecond());
 	}
 
-	public static BigDecimal calculateMACD(List<StockBar> stockBars){
-        List<StockBar> trimmedStockBars = stockBars.subList(stockBars.size()-26, stockBars.size());
-        BigDecimal longEMA = EMA.calculateEMA(trimmedStockBars);
-        trimmedStockBars = stockBars.subList(stockBars.size()-13, stockBars.size());
-        BigDecimal shortEMA = EMA.calculateEMA(trimmedStockBars);
+	public static BigDecimal calculateMACD(List<BigDecimal> list){
+        List<BigDecimal> trimmedList = list.subList(list.size()-25, list.size());
+        BigDecimal longEMA = EMA.calculateEMA(trimmedList);
+        trimmedList = list.subList(list.size()-12, list.size());
+        BigDecimal shortEMA = EMA.calculateEMA(trimmedList);
         return shortEMA.subtract(longEMA);
     }
 }

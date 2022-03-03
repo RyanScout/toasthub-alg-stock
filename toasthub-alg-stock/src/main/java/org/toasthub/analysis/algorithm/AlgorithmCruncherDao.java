@@ -16,25 +16,14 @@
 
 package org.toasthub.analysis.algorithm;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
-import javax.persistence.Query;
-
-import org.toasthub.analysis.model.EMA;
-import org.toasthub.analysis.model.LBB;
-import org.toasthub.analysis.model.MACD;
-import org.toasthub.analysis.model.SL;
 import org.toasthub.common.BaseDao;
+import org.toasthub.utils.Request;
+import org.toasthub.utils.Response;
 
 public interface AlgorithmCruncherDao extends BaseDao {
-	public BigDecimal queryMACDValue(MACD MACD);
-	public BigDecimal queryLBBValue(LBB lbb);
-	public BigDecimal querySLValue(SL sl);
-	public BigDecimal queryEMAValue(EMA ema);
-	public BigDecimal queryAlgValue(String alg, String stock, String type, long epochSeconds);
-	public Query queryBuilder(String alg, long epochSeconds, String type, String stock);
 	public void saveAll(Map< String , List<?> > map);
-	public Boolean queryChecker(String alg, long epochSeconds, String type, String stock);
+	public void initializedStockDay(Request request, Response response) throws Exception;
 }

@@ -30,7 +30,7 @@ import javax.persistence.Table;
 import net.jacobpeterson.alpaca.model.endpoint.marketdata.stock.historical.bar.StockBar;
 
 @Entity
-@Table(name = "tb_EMA")
+@Table(name = "sa_EMA")
 //Exponential Moving Average
 public class EMA extends BaseAlg{
 
@@ -45,6 +45,7 @@ public class EMA extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
+		this.setIdentifier("EMA");
 	}
 
 	public EMA(String stock) {
@@ -54,6 +55,7 @@ public class EMA extends BaseAlg{
         this.setArchive(false);
         this.setLocked(false);
         this.setCreated(Instant.now());
+		this.setIdentifier("EMA");
 	}
 
 	public EMA(String code, Boolean defaultLang, String dir){
@@ -61,32 +63,30 @@ public class EMA extends BaseAlg{
         this.setArchive(false);
         this.setLocked(false);
         this.setCreated(Instant.now());
+		this.setIdentifier("EMA");
 	}
 
 	public void initializer(List<StockBar> stockBars, int period){
 		setType(period+"-period");
 		setStockBars(stockBars.subList(stockBars.size()-period, stockBars.size()));
-		setMinute(stockBars.get(stockBars.size()-1).getTimestamp().getMinute());
-		setHour(stockBars.get(stockBars.size()-1).getTimestamp().getHour());
-		setDay(stockBars.get(stockBars.size()-1).getTimestamp().getDayOfMonth());
-		setMonth(stockBars.get(stockBars.size()-1).getTimestamp().getMonthValue());
-		setYear(stockBars.get(stockBars.size()-1).getTimestamp().getYear());
 		setEpochSeconds((long)stockBars.get(stockBars.size()-1).getTimestamp().toEpochSecond());
 	}
 
 
-	public static BigDecimal calculateEMA(List<StockBar> stockBars){
-        BigDecimal initEma = SMA.calculateSMA(stockBars);
-        BigDecimal multiplier = BigDecimal.valueOf( 2.0/(stockBars.size()+1) );
-        return (BigDecimal.valueOf
-        (stockBars.get(stockBars.size()-1).getClose()).multiply(multiplier) )
-        .add(initEma.multiply((BigDecimal.ONE.subtract(multiplier))));
+	public static BigDecimal calculateEMA(List<BigDecimal> list){
+        BigDecimal initEma = SMA.calculateSMA(list);
+        BigDecimal multiplier = BigDecimal.valueOf( 2.0/(list.size()+1) );
+        return
+        (list.get(list.size()-1)
+		.multiply(multiplier))
+        .add
+        (initEma.multiply((BigDecimal.ONE.subtract(multiplier))));
     }
 
-	public static BigDecimal calculateEMA(List<StockBar> stockBars, BigDecimal EMA){
-        BigDecimal multiplier = BigDecimal.valueOf( 2.0/(stockBars.size()+1) );
-        return (BigDecimal.valueOf
-        (stockBars.get(stockBars.size()-1).getClose()).multiply(multiplier) )
-        .add(EMA.multiply((BigDecimal.ONE.subtract(multiplier))));
+	public static BigDecimal calculateEMA(List<BigDecimal> list, BigDecimal EmaValue){
+        BigDecimal multiplier = BigDecimal.valueOf( 2.0/(list.size()+1) );
+        return 
+        (list.get(list.size()-1)).multiply(multiplier)
+        .add(EmaValue.multiply((BigDecimal.ONE.subtract(multiplier))));
     }
 }

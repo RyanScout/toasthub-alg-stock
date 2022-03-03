@@ -177,17 +177,17 @@ public class Functions {
     }
     
 
-    public static BigDecimal calculateSD(List<StockBar> stockBars) {
+    public static BigDecimal calculateSD(List<BigDecimal> list) {
         double sum = 0.0, standardDeviation = 0.0;
-        int length = stockBars.size();
+        int length = list.size();
 
         for (int i = 0; i < length; i++) {
-            sum += stockBars.get(i).getClose();
+            sum += list.get(i).doubleValue();
         }
         double mean = sum / length;
 
         for (int i = 0; i < length; i++) {
-            standardDeviation += Math.pow(stockBars.get(i).getClose() - mean, 2);
+            standardDeviation += Math.pow(list.get(i).doubleValue() - mean, 2);
         }
         return BigDecimal.valueOf(Math.sqrt(standardDeviation / length));
     }
@@ -199,18 +199,6 @@ public class Functions {
             sma = sma.add(BigDecimal.valueOf(stockBars.get(i).getClose()));
 
         return sma.divide(BigDecimal.valueOf(stockBars.size()), MathContext.DECIMAL32);
-    }
-
-    public static BigDecimal upperBollingerBand(List<StockBar> stockBars, int start, int end) {
-        BigDecimal sma = simpleMovingAverage(stockBars);
-        sma = sma.add(calculateSD(stockBars));
-        return sma.add((calculateSD(stockBars)));
-    }
-
-    public static BigDecimal lowerBollingerBand(List<StockBar> stockBars) {
-        BigDecimal sma = simpleMovingAverage(stockBars);
-        sma = sma.subtract(calculateSD(stockBars));
-        return sma.subtract(calculateSD(stockBars));
     }
 
     public static BigDecimal calculateEma(List<StockBar> stockBars) {

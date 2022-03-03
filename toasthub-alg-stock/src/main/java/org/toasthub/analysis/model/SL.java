@@ -31,7 +31,7 @@ import javax.persistence.Table;
 import net.jacobpeterson.alpaca.model.endpoint.marketdata.stock.historical.bar.StockBar;
 
 @Entity
-@Table(name = "tb_SL")
+@Table(name = "sa_SL")
 //Signal Line
 public class SL extends BaseAlg{
 
@@ -45,6 +45,7 @@ public class SL extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
+		this.setIdentifier("SL");
 	}
 
 	public SL(String stock) {
@@ -54,6 +55,7 @@ public class SL extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
+		this.setIdentifier("SL");
 	}
 
 	public SL(String code, Boolean defaultLang, String dir){
@@ -61,40 +63,36 @@ public class SL extends BaseAlg{
 		this.setArchive(false);
 		this.setLocked(false);
 		this.setCreated(Instant.now());
-		
+		this.setIdentifier("SL");
 	}
 
 	public void initializer(List<StockBar> stockBars){
 		setType("SL");
 		setStockBars(stockBars.subList(stockBars.size()-40, stockBars.size()));
-		setMinute(stockBars.get(stockBars.size()-1).getTimestamp().getMinute());
-		setHour(stockBars.get(stockBars.size()-1).getTimestamp().getHour());
-		setDay(stockBars.get(stockBars.size()-1).getTimestamp().getDayOfMonth());
-		setMonth(stockBars.get(stockBars.size()-1).getTimestamp().getMonthValue());
-		setYear(stockBars.get(stockBars.size()-1).getTimestamp().getYear());
 		setEpochSeconds((long)stockBars.get(stockBars.size()-1).getTimestamp().toEpochSecond());
 	}
 
-	public static BigDecimal calculateSL(List<StockBar> stockBars){
+	public static BigDecimal calculateSL(List<BigDecimal> list){
         BigDecimal multiplier = BigDecimal.valueOf( 2.0/(9+1) );
         BigDecimal macdAverage = BigDecimal.ZERO;
-        List<StockBar> stockBar;
+        List<BigDecimal> tempList;
         for(int i = 8 ; i > 0 ; i--){
-            stockBar = stockBars.subList(0, stockBars.size()-i);
-            macdAverage = macdAverage.add(MACD.calculateMACD(stockBar));
+            tempList = list.subList((list.size()-i)-25, list.size()-i);
+            macdAverage = macdAverage.add(MACD.calculateMACD(tempList));
         }
         macdAverage = macdAverage.divide(BigDecimal.valueOf(8), MathContext.DECIMAL32);
         macdAverage = macdAverage.multiply((BigDecimal.ONE.subtract(multiplier)));
-        return MACD.calculateMACD(stockBars).multiply(multiplier).add(macdAverage);
+        return MACD.calculateMACD(list).multiply(multiplier).add(macdAverage);
     }
-    public static BigDecimal calculateSL(MACD[] macdArr){
+
+    public static BigDecimal calculateSL(BigDecimal[] macdArr){
         BigDecimal multiplier = BigDecimal.valueOf( 2.0/(10) );
         BigDecimal macdAverage = BigDecimal.ZERO;
         for(int i =8 ; i > 1 ; i--){
-            macdAverage = macdAverage.add(macdArr[i].getValue());
+            macdAverage = macdAverage.add(macdArr[i]);
         }
         macdAverage = macdAverage.divide(BigDecimal.valueOf(8), MathContext.DECIMAL32);
         macdAverage = macdAverage.multiply((BigDecimal.ONE.subtract(multiplier)));
-        return macdArr[0].getValue().multiply(multiplier).add(macdAverage);
+        return macdArr[0].multiply(multiplier).add(macdAverage);
     }
 }
