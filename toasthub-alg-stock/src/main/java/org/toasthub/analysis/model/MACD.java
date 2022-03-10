@@ -75,7 +75,7 @@ public class MACD extends BaseAlg{
 	public static BigDecimal calculateMACD(List<BigDecimal> list){
         List<BigDecimal> trimmedList = list.subList(list.size()-25, list.size());
         BigDecimal longEMA = EMA.calculateEMA(trimmedList);
-        trimmedList = list.subList(list.size()-12, list.size());
+        trimmedList = list.subList(list.size()-11, list.size());
         BigDecimal shortEMA = EMA.calculateEMA(trimmedList);
         return shortEMA.subtract(longEMA);
     }

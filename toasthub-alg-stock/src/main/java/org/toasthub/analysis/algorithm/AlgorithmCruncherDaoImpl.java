@@ -48,13 +48,9 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
-	public void saveAll(Map<String, List<?>> map) {
-		for (String key : map.keySet()) {
-			List<Object> list = (List<Object>) map.get(key);
-			for (Object obj : list) {
-				entityManager.merge(obj);
-			}
+	public void saveAll(List<StockDay> stockDays) {
+		for (StockDay tempStockDay : stockDays) {
+			entityManager.merge(tempStockDay);
 		}
 	}
 

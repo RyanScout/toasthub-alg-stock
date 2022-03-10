@@ -19,11 +19,12 @@ package org.toasthub.analysis.algorithm;
 import java.util.List;
 import java.util.Map;
 
+import org.toasthub.analysis.model.StockDay;
 import org.toasthub.common.BaseDao;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
 
 public interface AlgorithmCruncherDao extends BaseDao {
-	public void saveAll(Map< String , List<?> > map);
+	public void saveAll(List<StockDay> stockDays);
 	public void initializedStockDay(Request request, Response response) throws Exception;
 }

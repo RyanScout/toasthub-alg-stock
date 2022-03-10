@@ -128,12 +128,11 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	@Scheduled(cron = "0 * * * * ?")
-	public void tradeAnalysisTask() {
+	public void dataBaseUpdater() {
 
 		Request request = new Request();
 		request.addParam("action", "LOAD");
 		Response response = new Response();
-
 
 		if (tradeAnalysisJobRunning.get()) {
 		System.out.println("Trade analysis is currently running skipping this time");
@@ -220,7 +219,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 							BarAdjustment.SPLIT,
 							BarFeed.SIP).getBars();
 				}
-
 				if (stockBar != null && stockBars != null) {
 
 					stockDay = new StockDay();
@@ -253,10 +251,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				second = second.plusDays(1);
 			}
 
-			for (StockDay tempStockDay : stockDays) {
-				request.addParam(GlobalConstant.ITEM, tempStockDay);
-				algorithmCruncherDao.save(request, response);
-			}
+			algorithmCruncherDao.saveAll(stockDays);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -269,7 +264,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		try {
 			String stockName = "SPY";
 
-			EMA ema13;
+			EMA ema12;
 			EMA ema26;
 			SMA sma;
 			MACD macd;
@@ -286,7 +281,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 			for (int i = 0; i < stockDays.size(); i++) {
 
-				ema13 = new EMA(stockName);
+				ema12 = new EMA(stockName);
 				ema26 = new EMA(stockName);
 				sma = new SMA(stockName);
 				macd = new MACD(stockName);
@@ -298,6 +293,24 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					sma.setStock(stockName);
 					sma.setType("50-day");
 					sma.setValue(SMA.calculateSMA(stockDaysValues.subList(i - 49, i + 1)));
+					request.addParam(GlobalConstant.ITEM, sma);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				if (i >= 19) {
+					sma.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+					sma.setStock(stockName);
+					sma.setType("20-day");
+					sma.setValue(SMA.calculateSMA(stockDaysValues.subList(i - 19, i + 1)));
+					request.addParam(GlobalConstant.ITEM, sma);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				if (i >= 14) {
+					sma.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+					sma.setStock(stockName);
+					sma.setType("15-day");
+					sma.setValue(SMA.calculateSMA(stockDaysValues.subList(i - 14, i + 1)));
 					request.addParam(GlobalConstant.ITEM, sma);
 					algorithmCruncherDao.save(request, response);
 				}
@@ -327,28 +340,28 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					algorithmCruncherDao.save(request, response);
 				}
 
-				if (i >= 12) {
-					ema13.setEpochSeconds(stockDays.get(i).getEpochSeconds());
-					ema13.setStock(stockName);
-					ema13.setType("13-day");
+				if (i >= 11) {
+					ema12.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+					ema12.setStock(stockName);
+					ema12.setType("12-day");
 
 					request.addParam(GlobalConstant.IDENTIFIER, "EMA");
-					request.addParam(GlobalConstant.TYPE, "13-day");
+					request.addParam(GlobalConstant.TYPE, "12-day");
 					request.addParam(GlobalConstant.STOCK, stockName);
 					request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i - 1).getEpochSeconds());
 
 					try {
 						algorithmCruncherDao.item(request, response);
-						ema13.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 12, i + 1),
+						ema12.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 11, i + 1),
 								((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
 					} catch (Exception e) {
 						if (e.getMessage().equals("No entity found for query"))
-							ema13.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 12, i + 1)));
+							ema12.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 11, i + 1)));
 						else
 							System.out.println(e.getMessage());
 					}
 
-					request.addParam(GlobalConstant.ITEM, ema13);
+					request.addParam(GlobalConstant.ITEM, ema12);
 					algorithmCruncherDao.save(request, response);
 				}
 
@@ -364,7 +377,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						request.addParam(GlobalConstant.TYPE, "26-day");
 						algorithmCruncherDao.item(request, response);
 						EMA longEMA = (EMA) response.getParam(GlobalConstant.ITEM);
-						request.addParam(GlobalConstant.TYPE, "13-day");
+						request.addParam(GlobalConstant.TYPE, "12-day");
 						algorithmCruncherDao.item(request, response);
 						EMA shortEMA = (EMA) response.getParam(GlobalConstant.ITEM);
 						macd.setValue(shortEMA.getValue().subtract(longEMA.getValue()));
@@ -379,23 +392,23 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					algorithmCruncherDao.save(request, response);
 				}
 
-				if (i >= 49) {
+				if (i >= 19) {
 					lbb.setEpochSeconds(stockDays.get(i).getEpochSeconds());
 					lbb.setStock(stockName);
-					lbb.setType("50-day");
+					lbb.setType("20-day");
 
 					request.addParam(GlobalConstant.IDENTIFIER, "SMA");
 					request.addParam(GlobalConstant.STOCK, stockName);
-					request.addParam(GlobalConstant.TYPE, "50-day");
+					request.addParam(GlobalConstant.TYPE, "20-day");
 					request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i).getEpochSeconds());
 
 					try {
 						algorithmCruncherDao.item(request, response);
-						lbb.setValue(LBB.calculateLBB(stockDaysValues.subList(i - 49, i + 1),
+						lbb.setValue(LBB.calculateLBB(stockDaysValues.subList(i - 19, i + 1),
 								((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
 					} catch (Exception e) {
 						if (e.getMessage().equals("No entity found for query"))
-							lbb.setValue(LBB.calculateLBB(stockDaysValues.subList(i - 49, i + 1)));
+							lbb.setValue(LBB.calculateLBB(stockDaysValues.subList(i - 19, i + 1)));
 						else
 							System.out.println(e.getMessage());
 					}
@@ -573,6 +586,21 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					sma.setStock(stockName);
 					sma.setType("50-day");
 					sma.setValue(SMA.calculateSMA(stockDaysValues.subList(i - 49, i + 1)));
+					request.addParam(GlobalConstant.ITEM, sma);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+				request.addParam(GlobalConstant.TYPE, "15-day");
+				request.addParam(GlobalConstant.STOCK, stockName);
+				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size()-1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+
+				if((Long)response.getParam(GlobalConstant.ITEMCOUNT) == 0){
+					sma.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+					sma.setStock(stockName);
+					sma.setType("15-day");
+					sma.setValue(SMA.calculateSMA(stockDaysValues.subList(i - 14, i + 1)));
 					request.addParam(GlobalConstant.ITEM, sma);
 					algorithmCruncherDao.save(request, response);
 				}
