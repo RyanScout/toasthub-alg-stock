@@ -17,7 +17,6 @@
 package org.toasthub.analysis.algorithm;
 
 import java.util.List;
-import java.util.Map;
 
 import org.toasthub.analysis.model.StockDay;
 import org.toasthub.common.BaseDao;

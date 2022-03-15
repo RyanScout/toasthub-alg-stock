@@ -17,7 +17,6 @@
 package org.toasthub.analysis.algorithm;
 
 import java.util.List;
-import java.util.Map;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
