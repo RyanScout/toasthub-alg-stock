@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.toasthub.analysis.model.StockDay;
+import org.toasthub.analysis.model.StockMinute;
 import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
@@ -37,6 +38,21 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 
 	@Autowired
 	protected EntityManager entityManager;
+
+	@Override
+	public void getRecentStockDay(Request request, Response response){
+		Query query = entityManager.createNativeQuery("SELECT * FROM stockanalyzer_main.sa_stock_day ORDER BY id DESC LIMIT 0, 1;" , StockDay.class);
+		Object result = query.getSingleResult();
+		response.addParam(GlobalConstant.ITEM , result);
+	}
+
+	@Override
+	public void getRecentStockMinute(Request request, Response response){
+		Query query = entityManager.createNativeQuery("SELECT * FROM stockanalyzer_main.sa_stock_minute ORDER BY id DESC LIMIT 0, 1;" , StockMinute.class);
+		Object result = query.getSingleResult();
+		response.addParam(GlobalConstant.ITEM , result);
+	}
+
 
 	@Override
 	public void delete(Request request, Response response) throws Exception {

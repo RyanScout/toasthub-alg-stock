@@ -13,4 +13,5 @@ public interface AlgorithmCruncherSvc {
 	public void backloadStockData(Request request, Response response);
 	public void loadStockData(Request request, Response response);
 	public void loadAlgs(Request request, Response response);
+	public void recentStats(Request request, Response response);
 }

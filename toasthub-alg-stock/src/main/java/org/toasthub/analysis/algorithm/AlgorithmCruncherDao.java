@@ -26,4 +26,7 @@ import org.toasthub.utils.Response;
 public interface AlgorithmCruncherDao extends BaseDao {
 	public void saveAll(List<StockDay> stockDays);
 	public void initializedStockDay(Request request, Response response) throws Exception;
+	public void getRecentStockDay(Request request, Response response);
+	public void getRecentStockMinute(Request request, Response response);
+	
 }

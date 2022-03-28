@@ -62,7 +62,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				item(request, response);
 				break;
 			case "LIST":
-				items(request, response);
+				recentStats(request, response);
 				break;
 			case "SAVE":
 				save(request, response);
@@ -71,8 +71,11 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				delete(request, response);
 				break;
 			case "BACKLOAD":
+				System.out.println("Starting!");
 				backloadStockData(request, response);
+				System.out.println("StockData Loaded");
 				backloadAlgs(request, response);
+				System.out.println("Algorithm Data Loaded");
 				break;
 			case "LOAD":
 				loadStockData(request, response);
@@ -82,6 +85,14 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				break;
 		}
 
+	}
+
+	@Override
+	public void recentStats(Request request, Response response) {
+		algorithmCruncherDao.getRecentStockDay(request, response);
+		response.addParam("STOCKDAY", response.getParam(GlobalConstant.ITEM));
+		algorithmCruncherDao.getRecentStockMinute(request, response);
+		response.addParam("STOCKMINUTE", response.getParam(GlobalConstant.ITEM));
 	}
 
 	@Override
@@ -135,15 +146,15 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		Response response = new Response();
 
 		if (tradeAnalysisJobRunning.get()) {
-		System.out.println("Trade analysis is currently running skipping this time");
-		return;
+			System.out.println("Trade analysis is currently running skipping this time");
+			return;
 
 		} else {
-		new Thread(()->{
-		tradeAnalysisJobRunning.set(true);
-		this.process(request, response);
-		tradeAnalysisJobRunning.set(false);
-		}).start();
+			new Thread(() -> {
+				tradeAnalysisJobRunning.set(true);
+				this.process(request, response);
+				tradeAnalysisJobRunning.set(false);
+			}).start();
 		}
 	}
 
@@ -564,209 +575,209 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			List<StockDay> stockDays = (List<StockDay>) response.getParam(GlobalConstant.ITEMS);
 			List<BigDecimal> stockDaysValues = new ArrayList<BigDecimal>();
 
-			int i =stockDays.size()-1;
+			int i = stockDays.size() - 1;
 			for (StockDay stockDay : stockDays)
 				stockDaysValues.add(stockDay.getClose());
 
-				ema13 = new EMA(stockName);
-				ema26 = new EMA(stockName);
-				sma = new SMA(stockName);
-				macd = new MACD(stockName);
-				lbb = new LBB(stockName);
-				sl = new SL(stockName);
+			ema13 = new EMA(stockName);
+			ema26 = new EMA(stockName);
+			sma = new SMA(stockName);
+			macd = new MACD(stockName);
+			lbb = new LBB(stockName);
+			sl = new SL(stockName);
 
-				request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-				request.addParam(GlobalConstant.TYPE, "50-day");
-				request.addParam(GlobalConstant.STOCK, stockName);
-				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size()-1).getEpochSeconds());
-				algorithmCruncherDao.itemCount(request, response);
+			request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+			request.addParam(GlobalConstant.TYPE, "50-day");
+			request.addParam(GlobalConstant.STOCK, stockName);
+			request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size() - 1).getEpochSeconds());
+			algorithmCruncherDao.itemCount(request, response);
 
-				if((Long)response.getParam(GlobalConstant.ITEMCOUNT) == 0){
-					sma.setEpochSeconds(stockDays.get(i).getEpochSeconds());
-					sma.setStock(stockName);
-					sma.setType("50-day");
-					sma.setValue(SMA.calculateSMA(stockDaysValues.subList(i - 49, i + 1)));
-					request.addParam(GlobalConstant.ITEM, sma);
-					algorithmCruncherDao.save(request, response);
-				}
+			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+				sma.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+				sma.setStock(stockName);
+				sma.setType("50-day");
+				sma.setValue(SMA.calculateSMA(stockDaysValues.subList(i - 49, i + 1)));
+				request.addParam(GlobalConstant.ITEM, sma);
+				algorithmCruncherDao.save(request, response);
+			}
 
-				request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-				request.addParam(GlobalConstant.TYPE, "15-day");
-				request.addParam(GlobalConstant.STOCK, stockName);
-				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size()-1).getEpochSeconds());
-				algorithmCruncherDao.itemCount(request, response);
+			request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+			request.addParam(GlobalConstant.TYPE, "15-day");
+			request.addParam(GlobalConstant.STOCK, stockName);
+			request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size() - 1).getEpochSeconds());
+			algorithmCruncherDao.itemCount(request, response);
 
-				if((Long)response.getParam(GlobalConstant.ITEMCOUNT) == 0){
-					sma.setEpochSeconds(stockDays.get(i).getEpochSeconds());
-					sma.setStock(stockName);
-					sma.setType("15-day");
-					sma.setValue(SMA.calculateSMA(stockDaysValues.subList(i - 14, i + 1)));
-					request.addParam(GlobalConstant.ITEM, sma);
-					algorithmCruncherDao.save(request, response);
-				}
+			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+				sma.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+				sma.setStock(stockName);
+				sma.setType("15-day");
+				sma.setValue(SMA.calculateSMA(stockDaysValues.subList(i - 14, i + 1)));
+				request.addParam(GlobalConstant.ITEM, sma);
+				algorithmCruncherDao.save(request, response);
+			}
+
+			request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+			request.addParam(GlobalConstant.TYPE, "26-day");
+			request.addParam(GlobalConstant.STOCK, stockName);
+			request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size() - 1).getEpochSeconds());
+			algorithmCruncherDao.itemCount(request, response);
+
+			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+				ema26.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+				ema26.setStock(stockName);
+				ema26.setType("26-day");
 
 				request.addParam(GlobalConstant.IDENTIFIER, "EMA");
 				request.addParam(GlobalConstant.TYPE, "26-day");
 				request.addParam(GlobalConstant.STOCK, stockName);
-				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size()-1).getEpochSeconds());
-				algorithmCruncherDao.itemCount(request, response);
+				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i - 1).getEpochSeconds());
 
-				if((Long)response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
-					ema26.setEpochSeconds(stockDays.get(i).getEpochSeconds());
-					ema26.setStock(stockName);
-					ema26.setType("26-day");
-
-					request.addParam(GlobalConstant.IDENTIFIER, "EMA");
-					request.addParam(GlobalConstant.TYPE, "26-day");
-					request.addParam(GlobalConstant.STOCK, stockName);
-					request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i - 1).getEpochSeconds());
-
-					try {
-						algorithmCruncherDao.item(request, response);
-						ema26.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 25, i + 1),
-								((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-					} catch (Exception e) {
-						if (e.getMessage().equals("No entity found for query"))
-							ema26.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 25, i + 1)));
-						else
-							System.out.println(e.getMessage());
-					}
-
-					request.addParam(GlobalConstant.ITEM, ema26);
-					algorithmCruncherDao.save(request, response);
+				try {
+					algorithmCruncherDao.item(request, response);
+					ema26.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 25, i + 1),
+							((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+				} catch (Exception e) {
+					if (e.getMessage().equals("No entity found for query"))
+						ema26.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 25, i + 1)));
+					else
+						System.out.println(e.getMessage());
 				}
+
+				request.addParam(GlobalConstant.ITEM, ema26);
+				algorithmCruncherDao.save(request, response);
+			}
+
+			request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+			request.addParam(GlobalConstant.TYPE, "13-day");
+			request.addParam(GlobalConstant.STOCK, stockName);
+			request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size() - 1).getEpochSeconds());
+			algorithmCruncherDao.itemCount(request, response);
+
+			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+				ema13.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+				ema13.setStock(stockName);
+				ema13.setType("13-day");
 
 				request.addParam(GlobalConstant.IDENTIFIER, "EMA");
 				request.addParam(GlobalConstant.TYPE, "13-day");
 				request.addParam(GlobalConstant.STOCK, stockName);
-				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size()-1).getEpochSeconds());
-				algorithmCruncherDao.itemCount(request, response);
+				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i - 1).getEpochSeconds());
 
-				if((Long)response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
-					ema13.setEpochSeconds(stockDays.get(i).getEpochSeconds());
-					ema13.setStock(stockName);
-					ema13.setType("13-day");
-
-					request.addParam(GlobalConstant.IDENTIFIER, "EMA");
-					request.addParam(GlobalConstant.TYPE, "13-day");
-					request.addParam(GlobalConstant.STOCK, stockName);
-					request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i - 1).getEpochSeconds());
-
-					try {
-						algorithmCruncherDao.item(request, response);
-						ema13.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 12, i + 1),
-								((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-					} catch (Exception e) {
-						if (e.getMessage().equals("No entity found for query"))
-							ema13.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 12, i + 1)));
-						else
-							System.out.println(e.getMessage());
-					}
-
-					request.addParam(GlobalConstant.ITEM, ema13);
-					algorithmCruncherDao.save(request, response);
+				try {
+					algorithmCruncherDao.item(request, response);
+					ema13.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 12, i + 1),
+							((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+				} catch (Exception e) {
+					if (e.getMessage().equals("No entity found for query"))
+						ema13.setValue(EMA.calculateEMA(stockDaysValues.subList(i - 12, i + 1)));
+					else
+						System.out.println(e.getMessage());
 				}
+
+				request.addParam(GlobalConstant.ITEM, ema13);
+				algorithmCruncherDao.save(request, response);
+			}
+
+			request.addParam(GlobalConstant.IDENTIFIER, "MACD");
+			request.addParam(GlobalConstant.TYPE, "Day");
+			request.addParam(GlobalConstant.STOCK, stockName);
+			request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size() - 1).getEpochSeconds());
+			algorithmCruncherDao.itemCount(request, response);
+
+			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+				macd.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+				macd.setStock(stockName);
+				macd.setType("Day");
+
+				request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+				request.addParam(GlobalConstant.STOCK, stockName);
+				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i).getEpochSeconds());
+				try {
+					request.addParam(GlobalConstant.TYPE, "26-day");
+					algorithmCruncherDao.item(request, response);
+					EMA longEMA = (EMA) response.getParam(GlobalConstant.ITEM);
+					request.addParam(GlobalConstant.TYPE, "13-day");
+					algorithmCruncherDao.item(request, response);
+					EMA shortEMA = (EMA) response.getParam(GlobalConstant.ITEM);
+					macd.setValue(shortEMA.getValue().subtract(longEMA.getValue()));
+				} catch (Exception e) {
+					if (e.getMessage().equals("No entity found for query"))
+						macd.setValue(MACD.calculateMACD(stockDaysValues.subList(i - 25, i + 1)));
+					else
+						System.out.println(e.getMessage());
+				}
+
+				request.addParam(GlobalConstant.ITEM, macd);
+				algorithmCruncherDao.save(request, response);
+			}
+
+			request.addParam(GlobalConstant.IDENTIFIER, "LBB");
+			request.addParam(GlobalConstant.TYPE, "50-day");
+			request.addParam(GlobalConstant.STOCK, stockName);
+			request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size() - 1).getEpochSeconds());
+			algorithmCruncherDao.itemCount(request, response);
+
+			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+				lbb.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+				lbb.setStock(stockName);
+				lbb.setType("50-day");
+
+				request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+				request.addParam(GlobalConstant.STOCK, stockName);
+				request.addParam(GlobalConstant.TYPE, "50-day");
+				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i).getEpochSeconds());
+
+				try {
+					algorithmCruncherDao.item(request, response);
+					lbb.setValue(LBB.calculateLBB(stockDaysValues.subList(i - 49, i + 1),
+							((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+				} catch (Exception e) {
+					if (e.getMessage().equals("No entity found for query"))
+						lbb.setValue(LBB.calculateLBB(stockDaysValues.subList(i - 49, i + 1)));
+					else
+						System.out.println(e.getMessage());
+				}
+
+				request.addParam(GlobalConstant.ITEM, lbb);
+				algorithmCruncherDao.save(request, response);
+			}
+
+			request.addParam(GlobalConstant.IDENTIFIER, "SL");
+			request.addParam(GlobalConstant.TYPE, "Day");
+			request.addParam(GlobalConstant.STOCK, stockName);
+			request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size() - 1).getEpochSeconds());
+			algorithmCruncherDao.itemCount(request, response);
+
+			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+				sl.setEpochSeconds(stockDays.get(i).getEpochSeconds());
+				sl.setStock(stockName);
+				sl.setType("Day");
 
 				request.addParam(GlobalConstant.IDENTIFIER, "MACD");
-				request.addParam(GlobalConstant.TYPE, "Day");
 				request.addParam(GlobalConstant.STOCK, stockName);
-				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size()-1).getEpochSeconds());
-				algorithmCruncherDao.itemCount(request, response);
+				request.addParam(GlobalConstant.TYPE, "DAY");
 
-				if((Long)response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
-					macd.setEpochSeconds(stockDays.get(i).getEpochSeconds());
-					macd.setStock(stockName);
-					macd.setType("Day");
+				try {
+					BigDecimal[] macdArr = new BigDecimal[9];
 
-					request.addParam(GlobalConstant.IDENTIFIER, "EMA");
-					request.addParam(GlobalConstant.STOCK, stockName);
-					request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i).getEpochSeconds());
-					try {
-						request.addParam(GlobalConstant.TYPE, "26-day");
+					for (int f = 0; f < 9; f++) {
+						request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i - f).getEpochSeconds());
 						algorithmCruncherDao.item(request, response);
-						EMA longEMA = (EMA) response.getParam(GlobalConstant.ITEM);
-						request.addParam(GlobalConstant.TYPE, "13-day");
-						algorithmCruncherDao.item(request, response);
-						EMA shortEMA = (EMA) response.getParam(GlobalConstant.ITEM);
-						macd.setValue(shortEMA.getValue().subtract(longEMA.getValue()));
-					} catch (Exception e) {
-						if (e.getMessage().equals("No entity found for query"))
-							macd.setValue(MACD.calculateMACD(stockDaysValues.subList(i - 25, i + 1)));
-						else
-							System.out.println(e.getMessage());
+						macdArr[f] = (((MACD) response.getParam(GlobalConstant.ITEM)).getValue());
 					}
 
-					request.addParam(GlobalConstant.ITEM, macd);
-					algorithmCruncherDao.save(request, response);
+					sl.setValue(SL.calculateSL(macdArr));
+
+				} catch (Exception e) {
+					if (e.getMessage().equals("No entity found for query"))
+						sl.setValue(SL.calculateSL(stockDaysValues.subList(i - 32, i + 1)));
+					else
+						System.out.println(e.getMessage());
 				}
 
-				request.addParam(GlobalConstant.IDENTIFIER, "LBB");
-				request.addParam(GlobalConstant.TYPE, "50-day");
-				request.addParam(GlobalConstant.STOCK, stockName);
-				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size()-1).getEpochSeconds());
-				algorithmCruncherDao.itemCount(request, response);
-
-				if((Long)response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
-					lbb.setEpochSeconds(stockDays.get(i).getEpochSeconds());
-					lbb.setStock(stockName);
-					lbb.setType("50-day");
-
-					request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-					request.addParam(GlobalConstant.STOCK, stockName);
-					request.addParam(GlobalConstant.TYPE, "50-day");
-					request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i).getEpochSeconds());
-
-					try {
-						algorithmCruncherDao.item(request, response);
-						lbb.setValue(LBB.calculateLBB(stockDaysValues.subList(i - 49, i + 1),
-								((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-					} catch (Exception e) {
-						if (e.getMessage().equals("No entity found for query"))
-							lbb.setValue(LBB.calculateLBB(stockDaysValues.subList(i - 49, i + 1)));
-						else
-							System.out.println(e.getMessage());
-					}
-
-					request.addParam(GlobalConstant.ITEM, lbb);
-					algorithmCruncherDao.save(request, response);
-				}
-
-				request.addParam(GlobalConstant.IDENTIFIER, "SL");
-				request.addParam(GlobalConstant.TYPE, "Day");
-				request.addParam(GlobalConstant.STOCK, stockName);
-				request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(stockDays.size()-1).getEpochSeconds());
-				algorithmCruncherDao.itemCount(request, response);
-
-				if((Long)response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
-					sl.setEpochSeconds(stockDays.get(i).getEpochSeconds());
-					sl.setStock(stockName);
-					sl.setType("Day");
-
-					request.addParam(GlobalConstant.IDENTIFIER, "MACD");
-					request.addParam(GlobalConstant.STOCK, stockName);
-					request.addParam(GlobalConstant.TYPE, "DAY");
-
-					try {
-						BigDecimal[] macdArr = new BigDecimal[9];
-
-						for (int f = 0; f < 9; f++) {
-							request.addParam(GlobalConstant.EPOCHSECONDS, stockDays.get(i - f).getEpochSeconds());
-							algorithmCruncherDao.item(request, response);
-							macdArr[f] = (((MACD) response.getParam(GlobalConstant.ITEM)).getValue());
-						}
-
-						sl.setValue(SL.calculateSL(macdArr));
-
-					} catch (Exception e) {
-						if (e.getMessage().equals("No entity found for query"))
-							sl.setValue(SL.calculateSL(stockDaysValues.subList(i - 32, i + 1)));
-						else
-							System.out.println(e.getMessage());
-					}
-
-					request.addParam(GlobalConstant.ITEM, sl);
-					algorithmCruncherDao.save(request, response);
-				}
+				request.addParam(GlobalConstant.ITEM, sl);
+				algorithmCruncherDao.save(request, response);
+			}
 
 		} catch (Exception e) {
 			e.printStackTrace();
