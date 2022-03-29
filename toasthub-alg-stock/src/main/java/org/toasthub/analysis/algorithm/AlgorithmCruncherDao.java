@@ -18,15 +18,15 @@ package org.toasthub.analysis.algorithm;
 
 import java.util.List;
 
-import org.toasthub.analysis.model.StockDay;
+import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.common.BaseDao;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
 
 public interface AlgorithmCruncherDao extends BaseDao {
-	public void saveAll(List<StockDay> stockDays);
-	public void initializedStockDay(Request request, Response response) throws Exception;
-	public void getRecentStockDay(Request request, Response response);
-	public void getRecentStockMinute(Request request, Response response);
+	public void saveAll(List<AssetDay> stockDays);
+	public void initializedAssetDay(Request request, Response response) throws Exception;
+	public void getRecentAssetDay(Request request, Response response);
+	public void getRecentAssetMinute(Request request, Response response);
 	
 }

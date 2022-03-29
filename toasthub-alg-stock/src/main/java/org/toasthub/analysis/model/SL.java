@@ -28,10 +28,8 @@ import java.util.List;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 
-import net.jacobpeterson.alpaca.model.endpoint.marketdata.stock.historical.bar.StockBar;
-
 @Entity
-@Table(name = "sa_SL")
+@Table(name = "ta_SL")
 //Signal Line
 public class SL extends BaseAlg{
 
@@ -48,9 +46,9 @@ public class SL extends BaseAlg{
 		this.setIdentifier("SL");
 	}
 
-	public SL(String stock) {
+	public SL(String symbol) {
 		super();
-		this.setStock(stock);
+		this.setSymbol(symbol);
 		this.setActive(true);
 		this.setArchive(false);
 		this.setLocked(false);
@@ -64,12 +62,6 @@ public class SL extends BaseAlg{
 		this.setLocked(false);
 		this.setCreated(Instant.now());
 		this.setIdentifier("SL");
-	}
-
-	public void initializer(List<StockBar> stockBars){
-		setType("SL");
-		setStockBars(stockBars.subList(stockBars.size()-40, stockBars.size()));
-		setEpochSeconds((long)stockBars.get(stockBars.size()-1).getTimestamp().toEpochSecond());
 	}
 
 	public static BigDecimal calculateSL(List<BigDecimal> list){

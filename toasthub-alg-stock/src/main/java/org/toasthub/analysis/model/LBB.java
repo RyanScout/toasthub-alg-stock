@@ -28,10 +28,8 @@ import javax.persistence.Table;
 
 import org.toasthub.common.Functions;
 
-import net.jacobpeterson.alpaca.model.endpoint.marketdata.stock.historical.bar.StockBar;
-
 @Entity
-@Table(name = "sa_LBB")
+@Table(name = "ta_LBB")
 //Lower Bollinger Band
 public class LBB extends BaseAlg{
 
@@ -49,9 +47,9 @@ public class LBB extends BaseAlg{
 		this.setIdentifier("LBB");
 	}
 
-	public LBB(String stock) {
+	public LBB(String symbol) {
 		super();
-		this.setStock(stock);
+		this.setSymbol(symbol);
 		this.setActive(true);
 		this.setArchive(false);
 		this.setLocked(false);
@@ -65,12 +63,6 @@ public class LBB extends BaseAlg{
 		this.setLocked(false);
 		this.setCreated(Instant.now());
 		this.setIdentifier("LBB");
-	}
-
-	public void initializer(List<StockBar> stockBars, int period){
-		setType(period+"-period");
-		setStockBars(stockBars.subList(stockBars.size()-period, stockBars.size()));
-		setEpochSeconds((long)stockBars.get(stockBars.size()-1).getTimestamp().toEpochSecond());
 	}
 
 	public static BigDecimal calculateLBB(List<BigDecimal> list) {

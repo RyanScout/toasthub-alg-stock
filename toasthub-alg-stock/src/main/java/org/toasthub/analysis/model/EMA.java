@@ -27,10 +27,8 @@ import java.util.List;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 
-import net.jacobpeterson.alpaca.model.endpoint.marketdata.stock.historical.bar.StockBar;
-
 @Entity
-@Table(name = "sa_EMA")
+@Table(name = "ta_EMA")
 //Exponential Moving Average
 public class EMA extends BaseAlg{
 
@@ -48,9 +46,9 @@ public class EMA extends BaseAlg{
 		this.setIdentifier("EMA");
 	}
 
-	public EMA(String stock) {
+	public EMA(String symbol) {
 		super();
-        this.setStock(stock);
+        this.setSymbol(symbol);
         this.setActive(true);
         this.setArchive(false);
         this.setLocked(false);
@@ -65,13 +63,6 @@ public class EMA extends BaseAlg{
         this.setCreated(Instant.now());
 		this.setIdentifier("EMA");
 	}
-
-	public void initializer(List<StockBar> stockBars, int period){
-		setType(period+"-period");
-		setStockBars(stockBars.subList(stockBars.size()-period, stockBars.size()));
-		setEpochSeconds((long)stockBars.get(stockBars.size()-1).getTimestamp().toEpochSecond());
-	}
-
 
 	public static BigDecimal calculateEMA(List<BigDecimal> list){
         BigDecimal initEma = SMA.calculateSMA(list);

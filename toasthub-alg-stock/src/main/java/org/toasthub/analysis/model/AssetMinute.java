@@ -13,24 +13,32 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.toasthub.common.BaseEntity;
 
 @Entity
-@Table(name="sa_stock_minute")
-public class StockMinute extends BaseEntity{
+@Table(name="ta_asset_minute")
+public class AssetMinute extends BaseEntity{
 
         private static final long serialVersionUID = 1L;
-        private StockDay stockDay;
-        private String stock;
+        private AssetDay assetDay;
+        private String symbol;
         private BigDecimal value;
         private long epochSeconds;
         private long volume;
         private BigDecimal vwap;
         private String type;
 
-        public StockMinute() {
+        public AssetMinute() {
             super();
-            this.setIdentifier("StockMinute");
-            this.setType("StockMinute");
+            this.setIdentifier("AssetMinute");
+            this.setType("AssetMinute");
         }
     
+        public String getSymbol() {
+            return symbol;
+        }
+
+        public void setSymbol(String symbol) {
+            this.symbol = symbol;
+        }
+
         public String getType() {
             return type;
         }
@@ -48,14 +56,14 @@ public class StockMinute extends BaseEntity{
         }
 
         @JsonIgnore
-        @ManyToOne(targetEntity = StockDay.class , fetch = FetchType.LAZY)
-        @JoinColumn(name = "stock_day_id")
-        public StockDay getStockDay() {
-            return stockDay;
+        @ManyToOne(targetEntity = AssetDay.class , fetch = FetchType.LAZY)
+        @JoinColumn(name = "asset_day_id")
+        public AssetDay getAssetDay() {
+            return assetDay;
         }
 
-        public void setStockDay(StockDay stockDay) {
-            this.stockDay = stockDay;
+        public void setAssetDay(AssetDay assetDay) {
+            this.assetDay = assetDay;
         }
 
         public BigDecimal getVwap() {
@@ -82,15 +90,7 @@ public class StockMinute extends BaseEntity{
             this.epochSeconds = epochSeconds;
         }
 
-        public String getStock() {
-            return stock;
-        }
-
-        public void setStock(String stock) {
-            this.stock = stock;
-        }
-
-        public StockMinute(String code, Boolean defaultLang, String dir){
+        public AssetMinute(String code, Boolean defaultLang, String dir){
             super();
         }
 }

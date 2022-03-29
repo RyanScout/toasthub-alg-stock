@@ -29,7 +29,7 @@ import javax.persistence.Entity;
 import javax.persistence.Table;
 
 @Entity
-@Table(name = "sa_SMA")
+@Table(name = "ta_SMA")
 //Simple Moving Average
 public class SMA extends BaseAlg{
 
@@ -47,9 +47,9 @@ public class SMA extends BaseAlg{
 		this.setIdentifier("SMA");
 	}
 
-	public SMA(String stock){
+	public SMA(String symbol){
 		super();
-		setStock(stock);
+		setSymbol(symbol);
 		this.setActive(true);
 		this.setArchive(false);
 		this.setLocked(false);

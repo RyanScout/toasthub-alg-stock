@@ -27,10 +27,8 @@ import java.util.List;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 
-import net.jacobpeterson.alpaca.model.endpoint.marketdata.stock.historical.bar.StockBar;
-
 @Entity
-@Table(name = "sa_MACD")
+@Table(name = "ta_MACD")
 //Moving Average Convergence/Divergence Indicator
 public class MACD extends BaseAlg{
 
@@ -48,9 +46,9 @@ public class MACD extends BaseAlg{
 		this.setIdentifier("MACD");
 	}
 
-	public MACD(String stock) {
+	public MACD(String symbol) {
 		super();
-		this.setStock(stock);
+		this.setSymbol(symbol);
 		this.setActive(true);
 		this.setArchive(false);
 		this.setLocked(false);
@@ -64,12 +62,6 @@ public class MACD extends BaseAlg{
 		this.setLocked(false);
 		this.setCreated(Instant.now());
 		this.setIdentifier("MACD");
-	}
-
-	public void initializer(List<StockBar> stockBars){
-		setType("MACD");
-		setStockBars(stockBars);
-		setEpochSeconds((long)stockBars.get(stockBars.size()-1).getTimestamp().toEpochSecond());
 	}
 
 	public static BigDecimal calculateMACD(List<BigDecimal> list){

@@ -12,12 +12,12 @@ import org.toasthub.common.BaseEntity;
 
 
 @Entity
-@Table(name="sa_stock_day")
-public class StockDay extends BaseEntity{
+@Table(name="ta_asset_day")
+public class AssetDay extends BaseEntity{
 
         private static final long serialVersionUID = 1L;
         private String type;
-        private String stock;
+        private String symbol;
         private BigDecimal open;
         private BigDecimal close;
         private BigDecimal high;
@@ -25,14 +25,22 @@ public class StockDay extends BaseEntity{
         private long epochSeconds;
         private long volume;
         private BigDecimal vwap;
-        private Set<StockMinute> stockMinutes;
+        private Set<AssetMinute> assetMinutes;
 
-        public StockDay() {
+        public AssetDay() {
             super();
-            setType("StockDay");
-            this.setIdentifier("StockDay");
+            setType("AssetDay");
+            this.setIdentifier("AssetDay");
         }
     
+        public String getSymbol() {
+            return symbol;
+        }
+
+        public void setSymbol(String symbol) {
+            this.symbol = symbol;
+        }
+
         public String getType() {
             return type;
         }
@@ -41,13 +49,13 @@ public class StockDay extends BaseEntity{
             this.type = type;
         }
 
-        @OneToMany(mappedBy = "stockDay", cascade = CascadeType.ALL)
-        public Set<StockMinute> getStockMinutes() {
-            return stockMinutes;
+        @OneToMany(mappedBy = "assetDay", cascade = CascadeType.ALL)
+        public Set<AssetMinute> getAssetMinutes() {
+            return assetMinutes;
         }
 
-        public void setStockMinutes(Set<StockMinute> stockMinutes) {
-            this.stockMinutes = stockMinutes;
+        public void setAssetMinutes(Set<AssetMinute> assetMinutes) {
+            this.assetMinutes = assetMinutes;
         }
 
         public BigDecimal getLow() {
@@ -104,13 +112,5 @@ public class StockDay extends BaseEntity{
 
         public void setEpochSeconds(long epochSeconds) {
             this.epochSeconds = epochSeconds;
-        }
-
-        public String getStock() {
-            return stock;
-        }
-
-        public void setStock(String stock) {
-            this.stock = stock;
         }
 }
