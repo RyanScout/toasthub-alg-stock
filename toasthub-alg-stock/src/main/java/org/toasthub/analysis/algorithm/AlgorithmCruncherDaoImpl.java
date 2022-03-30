@@ -41,7 +41,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 	@Override
 	public void getRecentAssetDay(Request request, Response response) {
 		Query query = entityManager.createNativeQuery(
-				"SELECT * FROM tradeanalyzer_main.sa_asset_day ORDER BY id DESC LIMIT 0, 1;", AssetDay.class);
+				"SELECT * FROM tradeanalyzer_main.ta_asset_day ORDER BY id DESC LIMIT 0, 1;", AssetDay.class);
 		Object result = query.getSingleResult();
 		response.addParam(GlobalConstant.ITEM, result);
 	}
@@ -49,7 +49,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 	@Override
 	public void getRecentAssetMinute(Request request, Response response) {
 		Query query = entityManager.createNativeQuery(
-				"SELECT * FROM tradeanalyzer_main.sa_asset_minute ORDER BY id DESC LIMIT 0, 1;", AssetMinute.class);
+				"SELECT * FROM tradeanalyzer_main.ta_asset_minute ORDER BY id DESC LIMIT 0, 1;", AssetMinute.class);
 		Object result = query.getSingleResult();
 		response.addParam(GlobalConstant.ITEM, result);
 	}
