@@ -20,6 +20,7 @@ import org.toasthub.analysis.model.LBB;
 import org.toasthub.analysis.model.MACD;
 import org.toasthub.analysis.model.SL;
 import org.toasthub.analysis.model.SMA;
+import org.toasthub.common.Symbol;
 import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.analysis.model.AssetMinute;
 import org.toasthub.utils.GlobalConstant;
@@ -172,10 +173,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	@Override
 	public void backloadStockData(Request request, Response response) {
 		try {
-			List<String> symbols = new ArrayList<String>();
-			symbols.add("SPY");
-
-			for (String stockName : symbols) {
+			for (String stockName : Symbol.STOCKSYMBOLS) {
 				List<StockBar> stockBars;
 				ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York")).truncatedTo(ChronoUnit.DAYS);
 				ZonedDateTime first = ZonedDateTime
@@ -281,12 +279,10 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	@Override
 	public void backloadCryptoData(Request request, Response response) {
 		try {
-			List<String> symbols = new ArrayList<String>();
-			symbols.add("BTCUSD");
 			Collection<Exchange> exchanges = new ArrayList<Exchange>();
 			exchanges.add(Exchange.COINBASE);
 
-			for (String cryptoName : symbols) {
+			for (String cryptoName : Symbol.CRYPTOSYMBOLS) {
 				List<CryptoBar> cryptoBars;
 				ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York"));
 				ZonedDateTime first = ZonedDateTime
@@ -390,10 +386,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	@SuppressWarnings("unchecked")
 	public void backloadAlgs(Request request, Response response) {
 		try {
-			List<String> symbols = new ArrayList<String>();
-			symbols.add("SPY");
-			symbols.add("BTCUSD");
-			for (String symbol : symbols) {
+			for (String symbol : Symbol.SYMBOLS) {
 
 				EMA ema12;
 				EMA ema26;
@@ -590,9 +583,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	@Override
 	public void loadStockData(Request request, Response response) {
 		try {
-			List<String> symbols = new ArrayList<String>();
-			symbols.add("SPY");
-			for (String stockName : symbols) {
+			for (String stockName : Symbol.STOCKSYMBOLS) {
 				List<StockBar> stockBars;
 				ZonedDateTime today = ZonedDateTime.now(ZoneId.of("America/New_York")).minusSeconds(60 * 20);
 				AssetDay stockDay;
@@ -684,12 +675,10 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	@Override
 	public void loadCryptoData(Request request, Response response) {
 		try {
-			List<String> symbols = new ArrayList<String>();
-			symbols.add("BTCUSD");
 			Collection<Exchange> exchanges = new ArrayList<Exchange>();
 			exchanges.add(Exchange.COINBASE);
 
-			for (String cryptoName : symbols) {
+			for (String cryptoName : Symbol.CRYPTOSYMBOLS) {
 				List<CryptoBar> cryptoBars;
 				ZonedDateTime today = ZonedDateTime.now(ZoneId.of("America/New_York"));
 				AssetDay cryptoDay;
@@ -778,11 +767,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	@SuppressWarnings("unchecked")
 	public void loadAlgs(Request request, Response response) {
 		try {
-
-			List<String> symbols = new ArrayList<String>();
-			symbols.add("SPY");
-			symbols.add("BTCUSD");
-			for (String symbol : symbols) {
+			for (String symbol : Symbol.SYMBOLS) {
 
 				EMA ema13;
 				EMA ema26;
