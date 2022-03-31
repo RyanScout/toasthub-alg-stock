@@ -85,7 +85,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				break;
 			case "LOAD":
 				loadStockData(request, response);
-				loadCryptoData(request,response);
+				loadCryptoData(request, response);
 				loadAlgs(request, response);
 				break;
 			default:
@@ -156,11 +156,11 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			return;
 
 		} else {
-				new Thread(()->{
+			new Thread(() -> {
 				tradeAnalysisJobRunning.set(true);
 				this.process(request, response);
 				tradeAnalysisJobRunning.set(false);
-				}).start();
+			}).start();
 		}
 	}
 
@@ -942,6 +942,36 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					} catch (Exception e) {
 						if (e.getMessage().equals("No entity found for query"))
 							lbb.setValue(LBB.calculateLBB(assetDaysValues.subList(i - 49, i + 1)));
+						else
+							System.out.println(e.getMessage());
+					}
+
+					request.addParam(GlobalConstant.ITEM, lbb);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				request.addParam(GlobalConstant.IDENTIFIER, "LBB");
+				request.addParam(GlobalConstant.TYPE, "20-day");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetDays.get(assetDays.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					lbb.setEpochSeconds(assetDays.get(i).getEpochSeconds());
+					lbb.setSymbol(symbol);
+					lbb.setType("20-day");
+
+					request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+					request.addParam(GlobalConstant.SYMBOL, symbol);
+					request.addParam(GlobalConstant.TYPE, "20-day");
+					request.addParam(GlobalConstant.EPOCHSECONDS, assetDays.get(i).getEpochSeconds());
+
+					try {
+						algorithmCruncherDao.item(request, response);
+						lbb.setValue(LBB.calculateLBB(assetDaysValues.subList(i - 19, i + 1),
+								((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+					} catch (Exception e) {
+						if (e.getMessage().equals("No entity found for query"))
+							lbb.setValue(LBB.calculateLBB(assetDaysValues.subList(i - 19, i + 1)));
 						else
 							System.out.println(e.getMessage());
 					}
