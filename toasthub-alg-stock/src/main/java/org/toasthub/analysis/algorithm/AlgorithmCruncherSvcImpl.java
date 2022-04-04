@@ -20,6 +20,7 @@ import org.toasthub.analysis.model.LBB;
 import org.toasthub.analysis.model.MACD;
 import org.toasthub.analysis.model.SL;
 import org.toasthub.analysis.model.SMA;
+import org.toasthub.analysis.model.UBB;
 import org.toasthub.common.Symbol;
 import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.analysis.model.AssetMinute;
@@ -80,13 +81,16 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				System.out.println("CryptoData Loaded");
 				backloadStockData(request, response);
 				System.out.println("StockData Loaded");
-				backloadAlgs(request, response);
-				System.out.println("Algorithm Data Loaded");
+				backloadAlgDays(request, response);
+				System.out.println("Algorithm Days Loaded");
+				backloadAlgMinutes(request, response);
+				System.out.println("Algorithm Minutes Loaded");
 				break;
 			case "LOAD":
 				loadStockData(request, response);
 				loadCryptoData(request, response);
-				loadAlgs(request, response);
+				loadAlgDays(request, response);
+				loadAlgMinutes(request, response);
 				break;
 			default:
 				break;
@@ -384,7 +388,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void backloadAlgs(Request request, Response response) {
+	public void backloadAlgDays(Request request, Response response) {
 		try {
 			for (String symbol : Symbol.SYMBOLS) {
 
@@ -393,7 +397,9 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				SMA sma;
 				MACD macd;
 				LBB lbb;
+				UBB ubb;
 				SL sl;
+
 
 				request.addParam(GlobalConstant.IDENTIFIER, "AssetDay");
 				request.addParam(GlobalConstant.SYMBOL, symbol);
@@ -411,6 +417,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					sma = new SMA(symbol);
 					macd = new MACD(symbol);
 					lbb = new LBB(symbol);
+					ubb = new UBB(symbol);
 					sl = new SL(symbol);
 
 					if (i >= 49) {
@@ -542,6 +549,31 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						algorithmCruncherDao.save(request, response);
 					}
 
+					if (i >= 19) {
+						ubb.setEpochSeconds(assetDays.get(i).getEpochSeconds());
+						ubb.setSymbol(symbol);
+						ubb.setType("20-day");
+
+						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.TYPE, "20-day");
+						request.addParam(GlobalConstant.EPOCHSECONDS, assetDays.get(i).getEpochSeconds());
+
+						try {
+							algorithmCruncherDao.item(request, response);
+							ubb.setValue(UBB.calculateUBB(assetDaysValues.subList(i - 19, i + 1),
+									((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+						} catch (Exception e) {
+							if (e.getMessage().equals("No entity found for query"))
+								ubb.setValue(UBB.calculateUBB(assetDaysValues.subList(i - 19, i + 1)));
+							else
+								System.out.println(e.getMessage());
+						}
+
+						request.addParam(GlobalConstant.ITEM, ubb);
+						algorithmCruncherDao.save(request, response);
+					}
+
 					if (i >= 32) {
 						sl.setEpochSeconds(assetDays.get(i).getEpochSeconds());
 						sl.setSymbol(symbol);
@@ -565,6 +597,232 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						} catch (Exception e) {
 							if (e.getMessage().equals("No entity found for query"))
 								sl.setValue(SL.calculateSL(assetDaysValues.subList(i - 32, i + 1)));
+							else
+								System.out.println(e.getMessage());
+						}
+
+						request.addParam(GlobalConstant.ITEM, sl);
+						algorithmCruncherDao.save(request, response);
+					}
+				}
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public void backloadAlgMinutes(Request request, Response response){
+		try {
+			for (String symbol : Symbol.SYMBOLS) {
+
+				EMA ema12;
+				EMA ema26;
+				SMA sma;
+				MACD macd;
+				LBB lbb;
+				UBB ubb;
+				SL sl;
+
+
+				request.addParam(GlobalConstant.IDENTIFIER, "AssetMinute");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				algorithmCruncherDao.items(request, response);
+
+				List<AssetMinute> assetMinutes = (List<AssetMinute>) response.getParam(GlobalConstant.ITEMS);
+				List<BigDecimal> assetMinuteValues = new ArrayList<BigDecimal>();
+				for (AssetMinute assetMinute : assetMinutes)
+					assetMinuteValues.add(assetMinute.getValue());
+
+				for (int i = 0; i < assetMinutes.size(); i++) {
+
+					ema12 = new EMA(symbol);
+					ema26 = new EMA(symbol);
+					sma = new SMA(symbol);
+					macd = new MACD(symbol);
+					lbb = new LBB(symbol);
+					ubb = new UBB(symbol);
+					sl = new SL(symbol);
+
+					if (i >= 49) {
+						sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+						sma.setSymbol(symbol);
+						sma.setType("50-minute");
+						sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - 49, i + 1)));
+						request.addParam(GlobalConstant.ITEM, sma);
+						algorithmCruncherDao.save(request, response);
+					}
+
+					if (i >= 19) {
+						sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+						sma.setSymbol(symbol);
+						sma.setType("20-minute");
+						sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - 19, i + 1)));
+						request.addParam(GlobalConstant.ITEM, sma);
+						algorithmCruncherDao.save(request, response);
+					}
+
+					if (i >= 14) {
+						sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+						sma.setSymbol(symbol);
+						sma.setType("15-minute");
+						sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - 14, i + 1)));
+						request.addParam(GlobalConstant.ITEM, sma);
+						algorithmCruncherDao.save(request, response);
+					}
+
+					if (i >= 25) {
+						ema26.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+						ema26.setSymbol(symbol);
+						ema26.setType("26-minute");
+
+						request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+						request.addParam(GlobalConstant.TYPE, "26-minute");
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i - 1).getEpochSeconds());
+
+						try {
+							algorithmCruncherDao.item(request, response);
+							ema26.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 25, i + 1),
+									((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+						} catch (Exception e) {
+							if (e.getMessage().equals("No entity found for query"))
+								ema26.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 25, i + 1)));
+							else
+								System.out.println(e.getMessage());
+						}
+
+						request.addParam(GlobalConstant.ITEM, ema26);
+						algorithmCruncherDao.save(request, response);
+					}
+
+					if (i >= 11) {
+						ema12.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+						ema12.setSymbol(symbol);
+						ema12.setType("12-minute");
+
+						request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+						request.addParam(GlobalConstant.TYPE, "12-minute");
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i - 1).getEpochSeconds());
+
+						try {
+							algorithmCruncherDao.item(request, response);
+							ema12.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 11, i + 1),
+									((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+						} catch (Exception e) {
+							if (e.getMessage().equals("No entity found for query"))
+								ema12.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 11, i + 1)));
+							else
+								System.out.println(e.getMessage());
+						}
+
+						request.addParam(GlobalConstant.ITEM, ema12);
+						algorithmCruncherDao.save(request, response);
+					}
+
+					if (i >= 25) {
+						macd.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+						macd.setSymbol(symbol);
+						macd.setType("Minute");
+
+						request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+						try {
+							request.addParam(GlobalConstant.TYPE, "26-minute");
+							algorithmCruncherDao.item(request, response);
+							EMA longEMA = (EMA) response.getParam(GlobalConstant.ITEM);
+							request.addParam(GlobalConstant.TYPE, "12-minute");
+							algorithmCruncherDao.item(request, response);
+							EMA shortEMA = (EMA) response.getParam(GlobalConstant.ITEM);
+							macd.setValue(shortEMA.getValue().subtract(longEMA.getValue()));
+						} catch (Exception e) {
+							if (e.getMessage().equals("No entity found for query"))
+								macd.setValue(MACD.calculateMACD(assetMinuteValues.subList(i - 25, i + 1)));
+							else
+								System.out.println(e.getMessage());
+						}
+
+						request.addParam(GlobalConstant.ITEM, macd);
+						algorithmCruncherDao.save(request, response);
+					}
+
+					if (i >= 19) {
+						lbb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+						lbb.setSymbol(symbol);
+						lbb.setType("20-minute");
+
+						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.TYPE, "20-minute");
+						request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+
+						try {
+							algorithmCruncherDao.item(request, response);
+							lbb.setValue(LBB.calculateLBB(assetMinuteValues.subList(i - 19, i + 1),
+									((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+						} catch (Exception e) {
+							if (e.getMessage().equals("No entity found for query"))
+								lbb.setValue(LBB.calculateLBB(assetMinuteValues.subList(i - 19, i + 1)));
+							else
+								System.out.println(e.getMessage());
+						}
+
+						request.addParam(GlobalConstant.ITEM, lbb);
+						algorithmCruncherDao.save(request, response);
+					}
+
+					if (i >= 19) {
+						ubb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+						ubb.setSymbol(symbol);
+						ubb.setType("20-minute");
+
+						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.TYPE, "20-minute");
+						request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+
+						try {
+							algorithmCruncherDao.item(request, response);
+							ubb.setValue(UBB.calculateUBB(assetMinuteValues.subList(i - 19, i + 1),
+									((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+						} catch (Exception e) {
+							if (e.getMessage().equals("No entity found for query"))
+								ubb.setValue(UBB.calculateUBB(assetMinuteValues.subList(i - 19, i + 1)));
+							else
+								System.out.println(e.getMessage());
+						}
+
+						request.addParam(GlobalConstant.ITEM, ubb);
+						algorithmCruncherDao.save(request, response);
+					}
+
+					if (i >= 32) {
+						sl.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+						sl.setSymbol(symbol);
+						sl.setType("Minute");
+
+						request.addParam(GlobalConstant.IDENTIFIER, "MACD");
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.TYPE, "Minute");
+
+						try {
+							BigDecimal[] macdArr = new BigDecimal[9];
+
+							for (int f = 0; f < 9; f++) {
+								request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i - f).getEpochSeconds());
+								algorithmCruncherDao.item(request, response);
+								macdArr[f] = (((MACD) response.getParam(GlobalConstant.ITEM)).getValue());
+							}
+
+							sl.setValue(SL.calculateSL(macdArr));
+
+						} catch (Exception e) {
+							if (e.getMessage().equals("No entity found for query"))
+								sl.setValue(SL.calculateSL(assetMinuteValues.subList(i - 32, i + 1)));
 							else
 								System.out.println(e.getMessage());
 						}
@@ -765,7 +1023,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void loadAlgs(Request request, Response response) {
+	public void loadAlgDays(Request request, Response response) {
 		try {
 			for (String symbol : Symbol.SYMBOLS) {
 
@@ -774,6 +1032,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				SMA sma;
 				MACD macd;
 				LBB lbb;
+				UBB ubb;
 				SL sl;
 
 				request.addParam(GlobalConstant.IDENTIFIER, "AssetDay");
@@ -792,6 +1051,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				sma = new SMA(symbol);
 				macd = new MACD(symbol);
 				lbb = new LBB(symbol);
+				ubb = new UBB(symbol);
 				sl = new SL(symbol);
 
 				request.addParam(GlobalConstant.IDENTIFIER, "SMA");
@@ -980,6 +1240,37 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					algorithmCruncherDao.save(request, response);
 				}
 
+				request.addParam(GlobalConstant.IDENTIFIER, "UBB");
+				request.addParam(GlobalConstant.TYPE, "20-day");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetDays.get(assetDays.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					ubb.setEpochSeconds(assetDays.get(i).getEpochSeconds());
+					ubb.setSymbol(symbol);
+					ubb.setType("20-day");
+
+					request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+					request.addParam(GlobalConstant.SYMBOL, symbol);
+					request.addParam(GlobalConstant.TYPE, "20-day");
+					request.addParam(GlobalConstant.EPOCHSECONDS, assetDays.get(i).getEpochSeconds());
+
+					try {
+						algorithmCruncherDao.item(request, response);
+						ubb.setValue(UBB.calculateUBB(assetDaysValues.subList(i - 19, i + 1),
+								((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+					} catch (Exception e) {
+						if (e.getMessage().equals("No entity found for query"))
+							ubb.setValue(UBB.calculateUBB(assetDaysValues.subList(i - 19, i + 1)));
+						else
+							System.out.println(e.getMessage());
+					}
+
+					request.addParam(GlobalConstant.ITEM, ubb);
+					algorithmCruncherDao.save(request, response);
+				}
+
+
 				request.addParam(GlobalConstant.IDENTIFIER, "SL");
 				request.addParam(GlobalConstant.TYPE, "Day");
 				request.addParam(GlobalConstant.SYMBOL, symbol);
@@ -1009,6 +1300,298 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					} catch (Exception e) {
 						if (e.getMessage().equals("No entity found for query"))
 							sl.setValue(SL.calculateSL(assetDaysValues.subList(i - 32, i + 1)));
+						else
+							System.out.println(e.getMessage());
+					}
+
+					request.addParam(GlobalConstant.ITEM, sl);
+					algorithmCruncherDao.save(request, response);
+				}
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public void loadAlgMinutes(Request request, Response response) {
+		try {
+			for (String symbol : Symbol.SYMBOLS) {
+
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				algorithmCruncherDao.getRecentAssetMinutes(request, response);
+				List<AssetMinute> assetMinutes = (List<AssetMinute>)response.getParam(GlobalConstant.ITEMS);
+				List<BigDecimal> assetMinuteValues = new ArrayList<BigDecimal>();
+
+				int i = assetMinutes.size() - 1;
+				for (AssetMinute assetMinute : assetMinutes)
+					assetMinuteValues.add(assetMinute.getValue());
+
+				EMA ema13;
+				EMA ema26;
+				SMA sma;
+				MACD macd;
+				LBB lbb;
+				UBB ubb;
+				SL sl;
+
+
+				ema13 = new EMA(symbol);
+				ema26 = new EMA(symbol);
+				sma = new SMA(symbol);
+				macd = new MACD(symbol);
+				lbb = new LBB(symbol);
+				ubb = new UBB(symbol);
+				sl = new SL(symbol);
+
+				request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+				request.addParam(GlobalConstant.TYPE, "50-minute");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+					sma.setSymbol(symbol);
+					sma.setType("50-minute");
+					sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - 49, i + 1)));
+					request.addParam(GlobalConstant.ITEM, sma);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+				request.addParam(GlobalConstant.TYPE, "15-minute");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+					sma.setSymbol(symbol);
+					sma.setType("15-minute");
+					sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - 14, i + 1)));
+					request.addParam(GlobalConstant.ITEM, sma);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+				request.addParam(GlobalConstant.TYPE, "26-minute");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					ema26.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+					ema26.setSymbol(symbol);
+					ema26.setType("26-minute");
+
+					request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+					request.addParam(GlobalConstant.TYPE, "26-minute");
+					request.addParam(GlobalConstant.SYMBOL, symbol);
+					request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i - 1).getEpochSeconds());
+
+					try {
+						algorithmCruncherDao.item(request, response);
+						ema26.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 25, i + 1),
+								((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+					} catch (Exception e) {
+						if (e.getMessage().equals("No entity found for query"))
+							ema26.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 25, i + 1)));
+						else
+							System.out.println(e.getMessage());
+					}
+
+					request.addParam(GlobalConstant.ITEM, ema26);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+				request.addParam(GlobalConstant.TYPE, "13-minute");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					ema13.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+					ema13.setSymbol(symbol);
+					ema13.setType("13-minute");
+
+					request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+					request.addParam(GlobalConstant.TYPE, "13-minute");
+					request.addParam(GlobalConstant.SYMBOL, symbol);
+					request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i - 1).getEpochSeconds());
+
+					try {
+						algorithmCruncherDao.item(request, response);
+						ema13.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 12, i + 1),
+								((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+					} catch (Exception e) {
+						if (e.getMessage().equals("No entity found for query"))
+							ema13.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 12, i + 1)));
+						else
+							System.out.println(e.getMessage());
+					}
+
+					request.addParam(GlobalConstant.ITEM, ema13);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				request.addParam(GlobalConstant.IDENTIFIER, "MACD");
+				request.addParam(GlobalConstant.TYPE, "Day");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					macd.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+					macd.setSymbol(symbol);
+					macd.setType("Day");
+
+					request.addParam(GlobalConstant.IDENTIFIER, "EMA");
+					request.addParam(GlobalConstant.SYMBOL, symbol);
+					request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+					try {
+						request.addParam(GlobalConstant.TYPE, "26-minute");
+						algorithmCruncherDao.item(request, response);
+						EMA longEMA = (EMA) response.getParam(GlobalConstant.ITEM);
+						request.addParam(GlobalConstant.TYPE, "13-minute");
+						algorithmCruncherDao.item(request, response);
+						EMA shortEMA = (EMA) response.getParam(GlobalConstant.ITEM);
+						macd.setValue(shortEMA.getValue().subtract(longEMA.getValue()));
+					} catch (Exception e) {
+						if (e.getMessage().equals("No entity found for query"))
+							macd.setValue(MACD.calculateMACD(assetMinuteValues.subList(i - 25, i + 1)));
+						else
+							System.out.println(e.getMessage());
+					}
+
+					request.addParam(GlobalConstant.ITEM, macd);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				request.addParam(GlobalConstant.IDENTIFIER, "LBB");
+				request.addParam(GlobalConstant.TYPE, "50-minute");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					lbb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+					lbb.setSymbol(symbol);
+					lbb.setType("50-minute");
+
+					request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+					request.addParam(GlobalConstant.SYMBOL, symbol);
+					request.addParam(GlobalConstant.TYPE, "50-minute");
+					request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+
+					try {
+						algorithmCruncherDao.item(request, response);
+						lbb.setValue(LBB.calculateLBB(assetMinuteValues.subList(i - 49, i + 1),
+								((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+					} catch (Exception e) {
+						if (e.getMessage().equals("No entity found for query"))
+							lbb.setValue(LBB.calculateLBB(assetMinuteValues.subList(i - 49, i + 1)));
+						else
+							System.out.println(e.getMessage());
+					}
+
+					request.addParam(GlobalConstant.ITEM, lbb);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				request.addParam(GlobalConstant.IDENTIFIER, "LBB");
+				request.addParam(GlobalConstant.TYPE, "20-minute");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					lbb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+					lbb.setSymbol(symbol);
+					lbb.setType("20-minute");
+
+					request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+					request.addParam(GlobalConstant.SYMBOL, symbol);
+					request.addParam(GlobalConstant.TYPE, "20-minute");
+					request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+
+					try {
+						algorithmCruncherDao.item(request, response);
+						lbb.setValue(LBB.calculateLBB(assetMinuteValues.subList(i - 19, i + 1),
+								((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+					} catch (Exception e) {
+						if (e.getMessage().equals("No entity found for query"))
+							lbb.setValue(LBB.calculateLBB(assetMinuteValues.subList(i - 19, i + 1)));
+						else
+							System.out.println(e.getMessage());
+					}
+
+					request.addParam(GlobalConstant.ITEM, lbb);
+					algorithmCruncherDao.save(request, response);
+				}
+
+				request.addParam(GlobalConstant.IDENTIFIER, "UBB");
+				request.addParam(GlobalConstant.TYPE, "20-minute");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					ubb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+					ubb.setSymbol(symbol);
+					ubb.setType("20-minute");
+
+					request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+					request.addParam(GlobalConstant.SYMBOL, symbol);
+					request.addParam(GlobalConstant.TYPE, "20-minute");
+					request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+
+					try {
+						algorithmCruncherDao.item(request, response);
+						ubb.setValue(UBB.calculateUBB(assetMinuteValues.subList(i - 19, i + 1),
+								((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
+					} catch (Exception e) {
+						if (e.getMessage().equals("No entity found for query"))
+							ubb.setValue(UBB.calculateUBB(assetMinuteValues.subList(i - 19, i + 1)));
+						else
+							System.out.println(e.getMessage());
+					}
+
+					request.addParam(GlobalConstant.ITEM, ubb);
+					algorithmCruncherDao.save(request, response);
+				}
+
+
+				request.addParam(GlobalConstant.IDENTIFIER, "SL");
+				request.addParam(GlobalConstant.TYPE, "Day");
+				request.addParam(GlobalConstant.SYMBOL, symbol);
+				request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+				algorithmCruncherDao.itemCount(request, response);
+
+				if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0) {
+					sl.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+					sl.setSymbol(symbol);
+					sl.setType("Day");
+
+					request.addParam(GlobalConstant.IDENTIFIER, "MACD");
+					request.addParam(GlobalConstant.SYMBOL, symbol);
+					request.addParam(GlobalConstant.TYPE, "DAY");
+
+					try {
+						BigDecimal[] macdArr = new BigDecimal[9];
+
+						for (int f = 0; f < 9; f++) {
+							request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i - f).getEpochSeconds());
+							algorithmCruncherDao.item(request, response);
+							macdArr[f] = (((MACD) response.getParam(GlobalConstant.ITEM)).getValue());
+						}
+
+						sl.setValue(SL.calculateSL(macdArr));
+
+					} catch (Exception e) {
+						if (e.getMessage().equals("No entity found for query"))
+							sl.setValue(SL.calculateSL(assetMinuteValues.subList(i - 32, i + 1)));
 						else
 							System.out.println(e.getMessage());
 					}

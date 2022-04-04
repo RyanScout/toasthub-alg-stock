@@ -16,6 +16,10 @@
 
 package org.toasthub.analysis.algorithm;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Collections;
 import java.util.List;
 
 import javax.persistence.EntityManager;
@@ -27,9 +31,12 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.analysis.model.AssetMinute;
+import org.toasthub.common.Symbol;
 import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
+
+import net.bytebuddy.agent.builder.AgentBuilder.CircularityLock.Global;
 
 @Repository("AlgorithmCruncherDao")
 @Transactional()
@@ -40,17 +47,49 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 
 	@Override
 	public void getRecentAssetDay(Request request, Response response) {
-		Query query = entityManager.createNativeQuery(
-				"SELECT * FROM tradeanalyzer_main.ta_asset_day ORDER BY id DESC LIMIT 0, 1;", AssetDay.class);
+		String x = "";
+		switch ((String) request.getParam(GlobalConstant.SYMBOL)) {
+			case "SPY":
+				x = "SPY";
+				break;
+			case "BTCUSD":
+				x = "BTCUSD";
+				break;
+			default:
+				break;
+		}
+
+		String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_day WHERE symbol = \""
+				+ x
+				+ "\" ORDER BY id DESC LIMIT 0, 1;";
+
+		Query query = entityManager.createNativeQuery(queryStr, AssetDay.class);
 		Object result = query.getSingleResult();
+
 		response.addParam(GlobalConstant.ITEM, result);
 	}
 
 	@Override
 	public void getRecentAssetMinute(Request request, Response response) {
-		Query query = entityManager.createNativeQuery(
-				"SELECT * FROM tradeanalyzer_main.ta_asset_minute ORDER BY id DESC LIMIT 0, 1;", AssetMinute.class);
+		String x = "";
+		switch ((String) request.getParam(GlobalConstant.SYMBOL)) {
+			case "SPY":
+				x = "SPY";
+				break;
+			case "BTCUSD":
+				x = "BTCUSD";
+				break;
+			default:
+				break;
+		}
+
+		String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_minute WHERE symbol = \""
+				+ x
+				+ "\" ORDER BY id DESC LIMIT 0, 1;";
+
+		Query query = entityManager.createNativeQuery(queryStr, AssetMinute.class);
 		Object result = query.getSingleResult();
+
 		response.addParam(GlobalConstant.ITEM, result);
 	}
 
@@ -83,6 +122,9 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 				break;
 			case "LBB":
 				x = "LBB";
+				break;
+			case "UBB":
+				x = "UBB";
 				break;
 			case "MACD":
 				x = "MACD";
@@ -123,6 +165,9 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 			case "LBB":
 				x = "LBB";
 				break;
+			case "UBB":
+				x = "UBB";
+				break;
 			case "MACD":
 				x = "MACD";
 				break;
@@ -139,7 +184,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 				break;
 		}
 
-		String queryStr = "SELECT COUNT(DISTINCT x) FROM " + x + " as x ";
+		String queryStr = "SELECT COUNT(DISTINCT x) FROM " + x + " AS x ";
 
 		boolean and = false;
 		if (request.containsParam(GlobalConstant.EPOCHSECONDS)) {
@@ -203,6 +248,9 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 			case "LBB":
 				x = "LBB";
 				break;
+			case "UBB":
+				x = "UBB";
+				break;
 			case "MACD":
 				x = "MACD";
 				break;
@@ -244,4 +292,32 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 
 		response.addParam(GlobalConstant.ITEM, result);
 	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public void getRecentAssetMinutes(Request request, Response response) {
+		String x = "";
+		switch ((String) request.getParam(GlobalConstant.SYMBOL)) {
+			case "SPY":
+				x = "SPY";
+				break;
+			case "BTCUSD":
+				x = "BTCUSD";
+				break;
+			default:
+				break;
+		}
+
+
+		String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_minute WHERE symbol = \""
+				+ x
+				+ "\" ORDER BY id DESC LIMIT 200;";
+
+		Query query = entityManager.createNativeQuery(queryStr, AssetMinute.class);
+		List<AssetMinute> assetMinutes = query.getResultList();
+		Collections.reverse(assetMinutes);
+
+		response.addParam(GlobalConstant.ITEMS, assetMinutes);
+	}
+
 }
