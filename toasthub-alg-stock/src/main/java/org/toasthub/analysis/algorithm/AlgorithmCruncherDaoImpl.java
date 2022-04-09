@@ -16,9 +16,6 @@
 
 package org.toasthub.analysis.algorithm;
 
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 
@@ -31,12 +28,10 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.analysis.model.AssetMinute;
-import org.toasthub.common.Symbol;
 import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
 
-import net.bytebuddy.agent.builder.AgentBuilder.CircularityLock.Global;
 
 @Repository("AlgorithmCruncherDao")
 @Transactional()
