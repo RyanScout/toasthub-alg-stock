@@ -988,8 +988,10 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 							cryptoDay.setVolume(cryptoBar.get(0).getVolume().longValue());
 							cryptoDay.setVwap(new BigDecimal(cryptoBar.get(0).getVwap()));
 							preExisting = false;
-						} else
+						} else{
 							System.out.println(e.getMessage());
+							e.printStackTrace();
+						}
 					}
 					for (int i = preExistingCryptoMinutes.size(); i < cryptoBars.size(); i++) {
 						cryptoMinute = new AssetMinute();

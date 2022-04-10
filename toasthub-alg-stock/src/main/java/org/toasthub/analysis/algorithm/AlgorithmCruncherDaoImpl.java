@@ -16,6 +16,7 @@
 
 package org.toasthub.analysis.algorithm;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -28,10 +29,10 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.analysis.model.AssetMinute;
+import org.toasthub.common.Symbol;
 import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
-
 
 @Repository("AlgorithmCruncherDao")
 @Transactional()
@@ -42,50 +43,37 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 
 	@Override
 	public void getRecentAssetDay(Request request, Response response) {
-		String x = "";
-		switch ((String) request.getParam(GlobalConstant.SYMBOL)) {
-			case "SPY":
-				x = "SPY";
-				break;
-			case "BTCUSD":
-				x = "BTCUSD";
-				break;
-			default:
-				break;
-		}
+		String x = (String) request.getParam(GlobalConstant.SYMBOL);
 
-		String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_day WHERE symbol = \""
-				+ x
-				+ "\" ORDER BY id DESC LIMIT 0, 1;";
+		if (Arrays.asList(Symbol.SYMBOLS).contains(x)) {
+			String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_day WHERE symbol = \""
+					+ x
+					+ "\" ORDER BY id DESC LIMIT 0, 1;";
 
-		Query query = entityManager.createNativeQuery(queryStr, AssetDay.class);
-		Object result = query.getSingleResult();
+			Query query = entityManager.createNativeQuery(queryStr, AssetDay.class);
+			Object result = query.getSingleResult();
 
-		response.addParam(GlobalConstant.ITEM, result);
+			response.addParam(GlobalConstant.ITEM, result);
+		} else
+			System.out.println("Symbol does not match symbols");
 	}
 
 	@Override
 	public void getRecentAssetMinute(Request request, Response response) {
-		String x = "";
-		switch ((String) request.getParam(GlobalConstant.SYMBOL)) {
-			case "SPY":
-				x = "SPY";
-				break;
-			case "BTCUSD":
-				x = "BTCUSD";
-				break;
-			default:
-				break;
-		}
+		String x = (String) request.getParam(GlobalConstant.SYMBOL);
 
-		String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_minute WHERE symbol = \""
-				+ x
-				+ "\" ORDER BY id DESC LIMIT 0, 1;";
+		if (Arrays.asList(Symbol.SYMBOLS).contains(x)) {
 
-		Query query = entityManager.createNativeQuery(queryStr, AssetMinute.class);
-		Object result = query.getSingleResult();
+			String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_minute WHERE symbol = \""
+					+ x
+					+ "\" ORDER BY id DESC LIMIT 0, 1;";
 
-		response.addParam(GlobalConstant.ITEM, result);
+			Query query = entityManager.createNativeQuery(queryStr, AssetMinute.class);
+			Object result = query.getSingleResult();
+
+			response.addParam(GlobalConstant.ITEM, result);
+		} else
+			System.out.println("Symbol does not contain symbols");
 	}
 
 	@Override
@@ -291,28 +279,21 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 	@Override
 	@SuppressWarnings("unchecked")
 	public void getRecentAssetMinutes(Request request, Response response) {
-		String x = "";
-		switch ((String) request.getParam(GlobalConstant.SYMBOL)) {
-			case "SPY":
-				x = "SPY";
-				break;
-			case "BTCUSD":
-				x = "BTCUSD";
-				break;
-			default:
-				break;
-		}
+		String x = (String) request.getParam(GlobalConstant.SYMBOL);
 
+		if (Arrays.asList(Symbol.SYMBOLS).contains(x)) {
 
-		String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_minute WHERE symbol = \""
-				+ x
-				+ "\" ORDER BY id DESC LIMIT 200;";
+			String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_minute WHERE symbol = \""
+					+ x
+					+ "\" ORDER BY id DESC LIMIT 200;";
 
-		Query query = entityManager.createNativeQuery(queryStr, AssetMinute.class);
-		List<AssetMinute> assetMinutes = query.getResultList();
-		Collections.reverse(assetMinutes);
+			Query query = entityManager.createNativeQuery(queryStr, AssetMinute.class);
+			List<AssetMinute> assetMinutes = query.getResultList();
+			Collections.reverse(assetMinutes);
 
-		response.addParam(GlobalConstant.ITEMS, assetMinutes);
+			response.addParam(GlobalConstant.ITEMS, assetMinutes);
+		} else
+			System.out.println("Symbol does not match symbols");
 	}
 
 }
