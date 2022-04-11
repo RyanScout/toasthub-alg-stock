@@ -28,7 +28,6 @@ public interface AlgorithmCruncherDao extends BaseDao {
 	public void initializedAssetDay(Request request, Response response) throws Exception;
 	public void getRecentAssetDay(Request request, Response response);
 	public void getRecentAssetMinute(Request request, Response response);
-	//returns all asset minutes from yesterday up until now
 	public void getRecentAssetMinutes(Request request, Response response);
 	
 }

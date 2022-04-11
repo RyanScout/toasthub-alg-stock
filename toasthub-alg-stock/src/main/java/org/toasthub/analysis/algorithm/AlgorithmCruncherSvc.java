@@ -1,14 +1,10 @@
 package org.toasthub.analysis.algorithm;
 
+import org.toasthub.common.BaseSvc;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
 
-public interface AlgorithmCruncherSvc {
-	public void process(Request request, Response response);
-	public void save(Request request, Response response);
-	public void delete(Request request, Response response);
-	public void item(Request request, Response response);
-	public void items(Request request, Response response);
+public interface AlgorithmCruncherSvc extends BaseSvc {
 	public void backloadAlgDays(Request request, Response response);
 	public void backloadAlgMinutes(Request request, Response response);
 	public void backloadStockData(Request request, Response response);
