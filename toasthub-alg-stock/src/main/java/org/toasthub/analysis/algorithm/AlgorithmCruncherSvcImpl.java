@@ -980,13 +980,13 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					} catch (Exception e) {
 						if (e.getMessage().equals("No entity found for query")) {
 							cryptoDay.setSymbol(cryptoName);
-							cryptoDay.setHigh(new BigDecimal(cryptoBar.get(0).getHigh()));
+							cryptoDay.setHigh(BigDecimal.valueOf(cryptoBar.get(0).getHigh()));
 							cryptoDay.setEpochSeconds(today.truncatedTo(ChronoUnit.DAYS).toEpochSecond());
-							cryptoDay.setClose(new BigDecimal(cryptoBar.get(0).getClose()));
-							cryptoDay.setLow(new BigDecimal(cryptoBar.get(0).getLow()));
-							cryptoDay.setOpen(new BigDecimal(cryptoBar.get(0).getOpen()));
+							cryptoDay.setClose(BigDecimal.valueOf(cryptoBar.get(0).getClose()));
+							cryptoDay.setLow(BigDecimal.valueOf(cryptoBar.get(0).getLow()));
+							cryptoDay.setOpen(BigDecimal.valueOf(cryptoBar.get(0).getOpen()));
 							cryptoDay.setVolume(cryptoBar.get(0).getVolume().longValue());
-							cryptoDay.setVwap(new BigDecimal(cryptoBar.get(0).getVwap()));
+							cryptoDay.setVwap(BigDecimal.valueOf(cryptoBar.get(0).getVwap()));
 							preExisting = false;
 						} else{
 							System.out.println(e.getMessage());
@@ -998,9 +998,9 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						cryptoMinute.setAssetDay(cryptoDay);
 						cryptoMinute.setSymbol(cryptoName);
 						cryptoMinute.setEpochSeconds(cryptoBars.get(i).getTimestamp().toEpochSecond());
-						cryptoMinute.setValue(new BigDecimal(cryptoBars.get(i).getClose()));
+						cryptoMinute.setValue(BigDecimal.valueOf(cryptoBars.get(i).getClose()));
 						cryptoMinute.setVolume(cryptoBars.get(i).getVolume().longValue());
-						cryptoMinute.setVwap(new BigDecimal(cryptoBars.get(i).getVwap()));
+						cryptoMinute.setVwap(BigDecimal.valueOf(cryptoBars.get(i).getVwap()));
 						cryptoMinutes.add(cryptoMinute);
 					}
 
