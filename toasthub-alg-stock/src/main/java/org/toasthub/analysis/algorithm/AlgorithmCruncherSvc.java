@@ -13,5 +13,4 @@ public interface AlgorithmCruncherSvc extends BaseSvc {
 	public void loadCryptoData(Request request, Response response);
 	public void loadAlgDays(Request request, Response response);
 	public void loadAlgMinutes(Request request, Response response);
-	public void recentStats(Request request, Response response);
 }

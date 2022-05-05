@@ -67,7 +67,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				item(request, response);
 				break;
 			case "LIST":
-				recentStats(request, response);
 				break;
 			case "SAVE":
 				save(request, response);
@@ -98,13 +97,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 	}
 
-	@Override
-	public void recentStats(Request request, Response response) {
-		algorithmCruncherDao.getRecentAssetDay(request, response);
-		response.addParam("ASSETDAY", response.getParam(GlobalConstant.ITEM));
-		algorithmCruncherDao.getRecentAssetMinute(request, response);
-		response.addParam("ASSETMINUTE", response.getParam(GlobalConstant.ITEM));
-	}
 
 	@Override
 	public void delete(Request request, Response response) {
