@@ -71,4 +71,19 @@ public class SMA extends BaseAlg{
         sma = sma.add(list.get(i));
         return sma.divide( new BigDecimal(list.size()) , MathContext.DECIMAL32);
     }
+
+	public static BigDecimal calculateSD(List<BigDecimal> list) {
+        double sum = 0.0, standardDeviation = 0.0;
+        int length = list.size();
+
+        for (int i = 0; i < length; i++) {
+            sum += list.get(i).doubleValue();
+        }
+        double mean = sum / length;
+
+        for (int i = 0; i < length; i++) {
+            standardDeviation += Math.pow(list.get(i).doubleValue() - mean, 2);
+        }
+        return BigDecimal.valueOf(Math.sqrt(standardDeviation / length));
+    }
 }

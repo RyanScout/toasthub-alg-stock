@@ -26,17 +26,16 @@ import java.util.List;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 
-import org.toasthub.common.Functions;
-
 @Entity
 @Table(name = "ta_LBB")
-//Lower Bollinger Band
-public class LBB extends BaseAlg{
+// Lower Bollinger Band
+public class LBB extends BaseAlg {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
+	private BigDecimal standardDeviations;
 
 	public LBB() {
 		super();
@@ -45,6 +44,14 @@ public class LBB extends BaseAlg{
 		this.setLocked(false);
 		this.setCreated(Instant.now());
 		this.setIdentifier("LBB");
+	}
+
+	public BigDecimal getStandardDeviations() {
+		return standardDeviations;
+	}
+
+	public void setStandardDeviations(BigDecimal standardDeviations) {
+		this.standardDeviations = standardDeviations;
 	}
 
 	public LBB(String symbol) {
@@ -57,7 +64,7 @@ public class LBB extends BaseAlg{
 		this.setIdentifier("LBB");
 	}
 
-	public LBB(String code, Boolean defaultLang, String dir){
+	public LBB(String code, Boolean defaultLang, String dir) {
 		this.setActive(true);
 		this.setArchive(false);
 		this.setLocked(false);
@@ -65,14 +72,15 @@ public class LBB extends BaseAlg{
 		this.setIdentifier("LBB");
 	}
 
-	public static BigDecimal calculateLBB(List<BigDecimal> list) {
-        BigDecimal sma = SMA.calculateSMA(list);
-        sma = sma.subtract(Functions.calculateSD(list));
-        return sma.subtract(Functions.calculateSD(list));
-    }
+	public static BigDecimal calculateLBB(List<BigDecimal> list, BigDecimal standardDeviations) {
+		BigDecimal sma = SMA.calculateSMA(list);
 
-	public static BigDecimal calculateLBB(List<BigDecimal> list, BigDecimal sma) {
-        sma = sma.subtract(Functions.calculateSD(list));
-        return sma.subtract(Functions.calculateSD(list));
-    }
+		return sma.subtract(
+				SMA.calculateSD(list).multiply(standardDeviations));
+	}
+
+	public static BigDecimal calculateLBB(List<BigDecimal> list, BigDecimal sma, BigDecimal standardDeviations) {
+		return sma.subtract(
+				SMA.calculateSD(list).multiply(standardDeviations));
+	}
 }

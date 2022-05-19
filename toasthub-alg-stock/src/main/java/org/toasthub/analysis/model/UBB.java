@@ -26,17 +26,16 @@ import java.util.List;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 
-import org.toasthub.common.Functions;
-
 @Entity
 @Table(name = "ta_UBB")
-//Lower Bollinger Band
-public class UBB extends BaseAlg{
+// Lower Bollinger Band
+public class UBB extends BaseAlg {
 
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
+	private BigDecimal standardDeviations;
 
 	public UBB() {
 		super();
@@ -45,6 +44,14 @@ public class UBB extends BaseAlg{
 		this.setLocked(false);
 		this.setCreated(Instant.now());
 		this.setIdentifier("UBB");
+	}
+
+	public BigDecimal getStandardDeviations() {
+		return standardDeviations;
+	}
+
+	public void setStandardDeviations(BigDecimal standardDeviations) {
+		this.standardDeviations = standardDeviations;
 	}
 
 	public UBB(String symbol) {
@@ -57,7 +64,7 @@ public class UBB extends BaseAlg{
 		this.setIdentifier("UBB");
 	}
 
-	public UBB(String code, Boolean defaultLang, String dir){
+	public UBB(String code, Boolean defaultLang, String dir) {
 		this.setActive(true);
 		this.setArchive(false);
 		this.setLocked(false);
@@ -65,14 +72,15 @@ public class UBB extends BaseAlg{
 		this.setIdentifier("UBB");
 	}
 
-	public static BigDecimal calculateUBB(List<BigDecimal> list) {
-        BigDecimal sma = SMA.calculateSMA(list);
-        sma = sma.add(Functions.calculateSD(list));
-        return sma.add(Functions.calculateSD(list));
-    }
+	public static BigDecimal calculateUBB(List<BigDecimal> list, BigDecimal standardDeviations) {
+		BigDecimal sma = SMA.calculateSMA(list);
 
-	public static BigDecimal calculateUBB(List<BigDecimal> list, BigDecimal sma) {
-        sma = sma.add(Functions.calculateSD(list));
-        return sma.add(Functions.calculateSD(list));
-    }
+		return sma.add(
+				SMA.calculateSD(list).multiply(standardDeviations));
+	}
+
+	public static BigDecimal calculateUBB(List<BigDecimal> list, BigDecimal sma, BigDecimal standardDeviations) {
+		return sma.add(
+				SMA.calculateSD(list).multiply(standardDeviations));
+	}
 }

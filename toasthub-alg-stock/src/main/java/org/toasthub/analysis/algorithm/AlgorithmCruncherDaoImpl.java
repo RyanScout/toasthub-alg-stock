@@ -16,9 +16,12 @@
 
 package org.toasthub.analysis.algorithm;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
@@ -121,8 +124,12 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 			case "AssetMinute":
 				x = "AssetMinute";
 				break;
+			case "TRADE_SIGNAL":
+				getTradeSignals(request, response);
+				return;
 			default:
-				break;
+				System.out.println("Invalid request");
+				return;
 		}
 
 		String queryStr = "SELECT DISTINCT x FROM " + x + " AS x WHERE x.symbol =:symbol";
@@ -197,6 +204,15 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 			queryStr += "x.type =:type ";
 			and = true;
 		}
+		if (x.equals("LBB") || x.equals("UBB")) {
+			if (!and)
+				queryStr += " WHERE ";
+			else
+				queryStr += " AND ";
+
+			queryStr += "x.standardDeviations =:standardDeviations ";
+			and = true;
+		}
 
 		Query query = entityManager.createQuery(queryStr);
 
@@ -208,6 +224,9 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 		}
 		if (request.containsParam(GlobalConstant.SYMBOL)) {
 			query.setParameter("symbol", (String) request.getParam(GlobalConstant.SYMBOL));
+		}
+		if (x.equals("LBB") || x.equals("UBB")) {
+			query.setParameter("standardDeviations", (BigDecimal) request.getParam("STANDARD_DEVIATIONS"));
 		}
 
 		Long count = (Long) query.getSingleResult();
@@ -296,4 +315,72 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 			System.out.println("Symbol does not match symbols");
 	}
 
+	@SuppressWarnings("unchecked")
+	public void getTradeSignals(Request request, Response response) {
+
+		Query query = null;
+		String evalPeriod = null;
+		List<Properties> properties = new ArrayList<Properties>();
+
+		switch ((String) request.getParam("EVAL_PERIOD")) {
+			case "DAY":
+				evalPeriod = "DAY";
+				break;
+			case "MINUTE":
+				evalPeriod = "MINUTE";
+				break;
+			default:
+				System.out.println("Invalid request");
+				return;
+		}
+
+		switch ((String) request.getParam("TRADE_SIGNAL")) {
+			case "GoldenCross":
+				query = entityManager.createQuery(
+						"Select x.shortSMAType , x.longSMAType , x.symbol FROM GoldenCross x WHERE x.evalPeriod =:evalPeriod");
+				query.setParameter("evalPeriod", evalPeriod);
+
+				((List<Object[]>) query.getResultList()).forEach(obj -> {
+					Properties p = new Properties();
+					p.put("SHORT_SMA_TYPE", obj[0]);
+					p.put("LONG_SMA_TYPE", obj[1]);
+					p.put("SYMBOL", obj[2]);
+					properties.add(p);
+				});
+				break;
+
+			case "LowerBollingerBand":
+				query = entityManager.createQuery(
+						"Select x.LBBType , x.standardDeviations , x.symbol FROM LowerBollingerBand x WHERE x.evalPeriod =:evalPeriod");
+				query.setParameter("evalPeriod", evalPeriod);
+
+				((List<Object[]>) query.getResultList()).forEach(obj -> {
+					Properties p = new Properties();
+					p.put("LBB_TYPE", obj[0]);
+					p.put("STANDARD_DEVIATIONS", obj[1]);
+					p.put("SYMBOL", obj[2]);
+					properties.add(p);
+				});
+				break;
+				
+			case "UpperBollingerBand":
+				query = entityManager.createQuery(
+						"Select x.UBBType , x.standardDeviations , x.symbol FROM UpperBollingerBand x WHERE x.evalPeriod =:evalPeriod");
+				query.setParameter("evalPeriod", evalPeriod);
+
+				((List<Object[]>) query.getResultList()).forEach(obj -> {
+					Properties p = new Properties();
+					p.put("UBB_TYPE", obj[0]);
+					p.put("STANDARD_DEVIATIONS", obj[1]);
+					p.put("SYMBOL", obj[2]);
+					properties.add(p);
+				});
+				break;
+			default:
+				System.out.println("Invalid request");
+				return;
+		}
+
+		response.addParam(GlobalConstant.ITEMS, properties);
+	}
 }
