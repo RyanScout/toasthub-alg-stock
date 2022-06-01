@@ -16,6 +16,7 @@
 
 package org.toasthub.analysis.algorithm;
 
+import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,7 +33,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.analysis.model.AssetMinute;
-import org.toasthub.common.Symbol;
+import org.toasthub.model.Symbol;
 import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
@@ -315,7 +316,6 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 			System.out.println("Symbol does not match symbols");
 	}
 
-	@SuppressWarnings("unchecked")
 	public void getTradeSignals(Request request, Response response) {
 
 		Query query = null;
@@ -340,13 +340,15 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 						"Select x.shortSMAType , x.longSMAType , x.symbol FROM GoldenCross x WHERE x.evalPeriod =:evalPeriod");
 				query.setParameter("evalPeriod", evalPeriod);
 
-				((List<Object[]>) query.getResultList()).forEach(obj -> {
+				for(Object obj : query.getResultList()){
+					Object[] arr = (Object[])obj;
 					Properties p = new Properties();
-					p.put("SHORT_SMA_TYPE", obj[0]);
-					p.put("LONG_SMA_TYPE", obj[1]);
-					p.put("SYMBOL", obj[2]);
+					p.put("SHORT_SMA_TYPE", arr[0]);
+					p.put("LONG_SMA_TYPE", arr[1]);
+					p.put("SYMBOL", arr[2]);
 					properties.add(p);
-				});
+				}
+				
 				break;
 
 			case "LowerBollingerBand":
@@ -354,13 +356,15 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 						"Select x.LBBType , x.standardDeviations , x.symbol FROM LowerBollingerBand x WHERE x.evalPeriod =:evalPeriod");
 				query.setParameter("evalPeriod", evalPeriod);
 
-				((List<Object[]>) query.getResultList()).forEach(obj -> {
+				for(Object obj : query.getResultList()){
+					Object[] arr = (Object[])obj;
 					Properties p = new Properties();
-					p.put("LBB_TYPE", obj[0]);
-					p.put("STANDARD_DEVIATIONS", obj[1]);
-					p.put("SYMBOL", obj[2]);
+					p.put("LBB_TYPE", arr[0]);
+					p.put("STANDARD_DEVIATIONS", arr[1]);
+					p.put("SYMBOL", arr[2]);
 					properties.add(p);
-				});
+				}
+
 				break;
 				
 			case "UpperBollingerBand":
@@ -368,13 +372,15 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 						"Select x.UBBType , x.standardDeviations , x.symbol FROM UpperBollingerBand x WHERE x.evalPeriod =:evalPeriod");
 				query.setParameter("evalPeriod", evalPeriod);
 
-				((List<Object[]>) query.getResultList()).forEach(obj -> {
+				for(Object obj : query.getResultList()){
+					Object[] arr = (Object[])obj;
 					Properties p = new Properties();
-					p.put("UBB_TYPE", obj[0]);
-					p.put("STANDARD_DEVIATIONS", obj[1]);
-					p.put("SYMBOL", obj[2]);
+					p.put("UBB_TYPE", arr[0]);
+					p.put("STANDARD_DEVIATIONS", arr[1]);
+					p.put("SYMBOL", arr[2]);
 					properties.add(p);
-				});
+				}
+				
 				break;
 			default:
 				System.out.println("Invalid request");

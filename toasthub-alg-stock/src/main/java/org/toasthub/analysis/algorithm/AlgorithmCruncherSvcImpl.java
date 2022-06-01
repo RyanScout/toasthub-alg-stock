@@ -22,7 +22,7 @@ import org.toasthub.analysis.model.MACD;
 import org.toasthub.analysis.model.SL;
 import org.toasthub.analysis.model.SMA;
 import org.toasthub.analysis.model.UBB;
-import org.toasthub.common.Symbol;
+import org.toasthub.model.Symbol;
 import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.analysis.model.AssetMinute;
 import org.toasthub.utils.GlobalConstant;
@@ -1656,7 +1656,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		loadUpperBollingerBandAlgs(request, response);
 	}
 
-	@SuppressWarnings("unchecked")
 	public void loadGoldenCrossAlgs(Request request, Response response) {
 		try {
 			request.addParam("EVAL_PERIOD", "DAY");
@@ -1664,7 +1663,15 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			request.addParam("TRADE_SIGNAL", "GoldenCross");
 			algorithmCruncherDao.items(request, response);
 
-			for (Properties p : (List<Properties>) response.getParam(GlobalConstant.ITEMS)) {
+			ArrayList<Properties> properties = new ArrayList<Properties>();
+
+			if(request.getParam(GlobalConstant.ITEMS) != null){
+				for(Object obj : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))){
+					properties.add(Properties.class.cast(obj));
+				}
+			}
+
+			for (Properties p : properties) {
 
 				SMA sma;
 				String symbol = p.getProperty("SYMBOL");
@@ -1677,12 +1684,18 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				request.addParam(GlobalConstant.SYMBOL, symbol);
 				algorithmCruncherDao.items(request, response);
 
-				List<AssetDay> assetDays = (List<AssetDay>) response.getParam(GlobalConstant.ITEMS);
+				List<AssetDay> assetDays = new ArrayList<AssetDay>();
 				List<BigDecimal> assetDaysValues = new ArrayList<BigDecimal>();
 
-				int i = assetDays.size() - 1;
-				for (AssetDay assetDay : assetDays)
+				for(Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))){
+					AssetDay assetDay = AssetDay.class.cast(obj);
+					assetDays.add(assetDay);
 					assetDaysValues.add(assetDay.getClose());
+				}
+
+				int i = assetDays.size() - 1;
+
+				if(i < 0) return;
 
 				sma = new SMA(symbol);
 
@@ -1726,8 +1739,15 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			request.addParam("TRADE_SIGNAL", "GoldenCross");
 			algorithmCruncherDao.items(request, response);
 
-			for (Properties p : (List<Properties>) response.getParam(GlobalConstant.ITEMS)) {
+			properties = new ArrayList<Properties>();
 
+			if(request.getParam(GlobalConstant.ITEMS) != null){
+				for(Object obj : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))){
+					properties.add(Properties.class.cast(obj));
+				}
+			}
+
+			for (Properties p : properties) {
 				String symbol = p.getProperty("SYMBOL");
 				String shortSMAType = p.getProperty("SHORT_SMA_TYPE");
 				String longSMAType = p.getProperty("LONG_SMA_TYPE");
@@ -1736,12 +1756,19 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 				request.addParam(GlobalConstant.SYMBOL, symbol);
 				algorithmCruncherDao.getRecentAssetMinutes(request, response);
-				List<AssetMinute> assetMinutes = (List<AssetMinute>) response.getParam(GlobalConstant.ITEMS);
+
+				List<AssetMinute> assetMinutes = new ArrayList<AssetMinute>();
 				List<BigDecimal> assetMinuteValues = new ArrayList<BigDecimal>();
 
-				int i = assetMinutes.size() - 1;
-				for (AssetMinute assetMinute : assetMinutes)
+				for(Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))){
+					AssetMinute assetMinute = AssetMinute.class.cast(obj);
+					assetMinutes.add(assetMinute);
 					assetMinuteValues.add(assetMinute.getValue());
+				}
+
+				int i = assetMinutes.size() - 1;
+
+				if(i < 0) return;
 
 				SMA sma;
 
