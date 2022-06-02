@@ -21,8 +21,12 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
@@ -33,7 +37,11 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.analysis.model.AssetMinute;
+import org.toasthub.analysis.model.LBB;
+import org.toasthub.analysis.model.SMA;
+import org.toasthub.analysis.model.UBB;
 import org.toasthub.model.Symbol;
+import org.toasthub.model.TechnicalIndicator;
 import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
@@ -127,6 +135,9 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 				break;
 			case "TRADE_SIGNAL":
 				getTradeSignals(request, response);
+				return;
+			case "TECHNICAL_INDICATOR":
+				getAlgSets(request, response);
 				return;
 			default:
 				System.out.println("Invalid request");
@@ -340,15 +351,15 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 						"Select x.shortSMAType , x.longSMAType , x.symbol FROM GoldenCross x WHERE x.evalPeriod =:evalPeriod");
 				query.setParameter("evalPeriod", evalPeriod);
 
-				for(Object obj : query.getResultList()){
-					Object[] arr = (Object[])obj;
+				for (Object obj : query.getResultList()) {
+					Object[] arr = (Object[]) obj;
 					Properties p = new Properties();
 					p.put("SHORT_SMA_TYPE", arr[0]);
 					p.put("LONG_SMA_TYPE", arr[1]);
 					p.put("SYMBOL", arr[2]);
 					properties.add(p);
 				}
-				
+
 				break;
 
 			case "LowerBollingerBand":
@@ -356,8 +367,8 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 						"Select x.LBBType , x.standardDeviations , x.symbol FROM LowerBollingerBand x WHERE x.evalPeriod =:evalPeriod");
 				query.setParameter("evalPeriod", evalPeriod);
 
-				for(Object obj : query.getResultList()){
-					Object[] arr = (Object[])obj;
+				for (Object obj : query.getResultList()) {
+					Object[] arr = (Object[]) obj;
 					Properties p = new Properties();
 					p.put("LBB_TYPE", arr[0]);
 					p.put("STANDARD_DEVIATIONS", arr[1]);
@@ -366,21 +377,21 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 				}
 
 				break;
-				
+
 			case "UpperBollingerBand":
 				query = entityManager.createQuery(
 						"Select x.UBBType , x.standardDeviations , x.symbol FROM UpperBollingerBand x WHERE x.evalPeriod =:evalPeriod");
 				query.setParameter("evalPeriod", evalPeriod);
 
-				for(Object obj : query.getResultList()){
-					Object[] arr = (Object[])obj;
+				for (Object obj : query.getResultList()) {
+					Object[] arr = (Object[]) obj;
 					Properties p = new Properties();
 					p.put("UBB_TYPE", arr[0]);
 					p.put("STANDARD_DEVIATIONS", arr[1]);
 					p.put("SYMBOL", arr[2]);
 					properties.add(p);
 				}
-				
+
 				break;
 			default:
 				System.out.println("Invalid request");
@@ -388,5 +399,56 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 		}
 
 		response.addParam(GlobalConstant.ITEMS, properties);
+	}
+
+	public void getAlgSets(Request request, Response response) {
+		String queryStr = "Select DISTINCT x FROM TechnicalIndicator x JOIN FETCH x.symbols as s WHERE x.evaluationPeriod =:evaluationPeriod";
+		Query query = entityManager.createQuery(queryStr);
+		query.setParameter("evaluationPeriod", (String) request.getParam("EVALUATION_PERIOD"));
+
+		Set<SMA> smaSet = new HashSet<SMA>();
+		Set<LBB> lbbSet = new HashSet<LBB>();
+		Set<UBB> ubbSet = new HashSet<UBB>();
+
+		for (Object o : ArrayList.class.cast(query.getResultList())) {
+
+			TechnicalIndicator x = (TechnicalIndicator) o;
+
+			x.getSymbols().stream().forEach(symbol -> {
+
+				switch (x.getTechnicalIndicatorType()) {
+
+					case "GoldenCross":
+						SMA shortSMA = new SMA();
+						shortSMA.setSymbol(symbol.getSymbol());
+						shortSMA.setType(x.getShortSMAType());
+						SMA longSMA = new SMA();
+						longSMA.setSymbol(symbol.getSymbol());
+						longSMA.setType(x.getLongSMAType());
+						smaSet.add(shortSMA);
+						smaSet.add(longSMA);
+						break;
+
+					case "UpperBollingerBand":
+						LBB lbb = new LBB();
+						lbb.setSymbol(symbol.getSymbol());
+						lbb.setType(x.getLBBType());
+						lbb.setStandardDeviations(x.getStandardDeviations());
+						lbbSet.add(lbb);
+						break;
+
+					case "LowerBollingerBand":
+						UBB ubb = new UBB();
+						ubb.setSymbol(symbol.getSymbol());
+						ubb.setType(x.getUBBType());
+						ubb.setStandardDeviations(x.getStandardDeviations());
+						ubbSet.add(ubb);
+						break;
+				}
+			});
+		}
+		response.addParam("SMA_SET", smaSet);
+		response.addParam("LBB_SET", lbbSet);
+		response.addParam("UBB_SET", ubbSet);
 	}
 }

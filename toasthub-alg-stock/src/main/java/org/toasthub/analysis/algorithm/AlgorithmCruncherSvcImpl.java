@@ -7,11 +7,13 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -89,7 +91,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			case "LOAD":
 				loadStockData(request, response);
 				loadCryptoData(request, response);
-				tempLoadAlgs(request, response);
+				superTempLoadAlgs(request, response);
 				break;
 			default:
 				break;
@@ -1656,6 +1658,182 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		loadUpperBollingerBandAlgs(request, response);
 	}
 
+	public void superTempLoadAlgs(Request request, Response response) {
+		request.addParam("EVALUATION_PERIOD", "DAY");
+		request.addParam(GlobalConstant.IDENTIFIER, "TECHNICAL_INDICATOR");
+		try {
+			algorithmCruncherDao.items(request, response);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		Set<SMA> smaSetDay = new HashSet<SMA>();
+		Set<LBB> lbbSetDay = new HashSet<LBB>();
+		Set<UBB> ubbSetDay = new HashSet<UBB>();
+
+		if (response.getParam("SMA_SET") != null) {
+			for (Object obj : Set.class.cast(response.getParam("SMA_SET"))) {
+				smaSetDay.add((SMA) obj);
+			}
+		}
+
+		if (response.getParam("LBB_SET") != null) {
+			for (Object obj : Set.class.cast(response.getParam("LBB_SET"))) {
+				lbbSetDay.add((LBB) obj);
+			}
+		}
+
+		if (response.getParam("UBB_SET") != null) {
+			for (Object obj : Set.class.cast(response.getParam("UBB_SET"))) {
+				ubbSetDay.add((UBB) obj);
+			}
+		}
+
+		Stream.of(Symbol.SYMBOLS).forEach(symbol -> {
+
+			request.addParam(GlobalConstant.IDENTIFIER, "AssetDay");
+			request.addParam(GlobalConstant.SYMBOL, symbol);
+			try {
+				algorithmCruncherDao.items(request, response);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			List<AssetDay> assetDays = new ArrayList<AssetDay>();
+			List<BigDecimal> assetDaysValues = new ArrayList<BigDecimal>();
+
+			for (Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
+				AssetDay assetDay = AssetDay.class.cast(obj);
+				assetDays.add(assetDay);
+				assetDaysValues.add(assetDay.getClose());
+			}
+
+			int i = assetDays.size() - 1;
+
+			if (i < 0)
+				return;
+
+			smaSetDay.stream()
+					.filter(sma -> sma.getSymbol().equals(symbol))
+					.forEach(sma -> {
+
+						int smaPeriod = Integer.valueOf(sma.getType().substring(0, sma.getType().indexOf("-")));
+
+						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+						request.addParam(GlobalConstant.TYPE, sma.getType());
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.EPOCHSECONDS,
+								assetDays.get(assetDays.size() - 1).getEpochSeconds());
+						try {
+							algorithmCruncherDao.itemCount(request, response);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+
+						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0
+								&& i >= smaPeriod) {
+							sma.setEpochSeconds(assetDays.get(i).getEpochSeconds());
+							sma.setSymbol(symbol);
+							sma.setType(sma.getType());
+							sma.setValue(SMA.calculateSMA(assetDaysValues.subList(i - (smaPeriod - 1), i + 1)));
+							request.addParam(GlobalConstant.ITEM, sma);
+							try {
+								algorithmCruncherDao.save(request, response);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+
+					});
+
+		});
+
+		request.addParam("EVALUATION_PERIOD", "MINUTE");
+		request.addParam(GlobalConstant.IDENTIFIER, "TECHNICAL_INDICATOR");
+		
+		try {
+			algorithmCruncherDao.items(request, response);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		Set<SMA> smaSetMinute = new HashSet<SMA>();
+		Set<LBB> lbbSetMinute = new HashSet<LBB>();
+		Set<UBB> ubbSetMinute = new HashSet<UBB>();
+
+		if (response.getParam("SMA_SET") != null) {
+			for (Object obj : Set.class.cast(response.getParam("SMA_SET"))) {
+				smaSetMinute.add((SMA) obj);
+			}
+		}
+
+		if (response.getParam("LBB_SET") != null) {
+			for (Object obj : Set.class.cast(response.getParam("LBB_SET"))) {
+				lbbSetMinute.add((LBB) obj);
+			}
+		}
+
+		if (response.getParam("UBB_SET") != null) {
+			for (Object obj : Set.class.cast(response.getParam("UBB_SET"))) {
+				ubbSetMinute.add((UBB) obj);
+			}
+		}
+
+		Stream.of(Symbol.SYMBOLS).forEach(symbol -> {
+
+			request.addParam(GlobalConstant.SYMBOL, symbol);
+			algorithmCruncherDao.getRecentAssetMinutes(request, response);
+
+			List<AssetMinute> assetMinutes = new ArrayList<AssetMinute>();
+			List<BigDecimal> assetMinuteValues = new ArrayList<BigDecimal>();
+
+			for (Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
+				AssetMinute assetMinute = AssetMinute.class.cast(obj);
+				assetMinutes.add(assetMinute);
+				assetMinuteValues.add(assetMinute.getValue());
+			}
+
+			int i = assetMinutes.size() - 1;
+
+			if (i < 0)
+				return;
+
+			smaSetMinute.stream()
+					.filter(sma -> sma.getSymbol().equals(symbol))
+					.forEach(sma -> {
+
+						int smaPeriod = Integer.valueOf(sma.getType().substring(0, sma.getType().indexOf("-")));
+
+						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+						request.addParam(GlobalConstant.TYPE, sma.getType());
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.EPOCHSECONDS,
+								assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+						try {
+							algorithmCruncherDao.itemCount(request, response);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+
+						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0
+								&& i >= smaPeriod) {
+							sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+							sma.setSymbol(symbol);
+							sma.setType(sma.getType());
+							sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - (smaPeriod - 1), i + 1)));
+							request.addParam(GlobalConstant.ITEM, sma);
+							try {
+								algorithmCruncherDao.save(request, response);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+
+					});
+
+		});
+	}
+
 	public void loadGoldenCrossAlgs(Request request, Response response) {
 		try {
 			request.addParam("EVAL_PERIOD", "DAY");
@@ -1665,8 +1843,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 			ArrayList<Properties> properties = new ArrayList<Properties>();
 
-			if(request.getParam(GlobalConstant.ITEMS) != null){
-				for(Object obj : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))){
+			if (response.getParam(GlobalConstant.ITEMS) != null) {
+				for (Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
 					properties.add(Properties.class.cast(obj));
 				}
 			}
@@ -1687,7 +1865,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				List<AssetDay> assetDays = new ArrayList<AssetDay>();
 				List<BigDecimal> assetDaysValues = new ArrayList<BigDecimal>();
 
-				for(Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))){
+				for (Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
 					AssetDay assetDay = AssetDay.class.cast(obj);
 					assetDays.add(assetDay);
 					assetDaysValues.add(assetDay.getClose());
@@ -1695,7 +1873,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 				int i = assetDays.size() - 1;
 
-				if(i < 0) return;
+				if (i < 0)
+					return;
 
 				sma = new SMA(symbol);
 
@@ -1741,8 +1920,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 			properties = new ArrayList<Properties>();
 
-			if(request.getParam(GlobalConstant.ITEMS) != null){
-				for(Object obj : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))){
+			if (response.getParam(GlobalConstant.ITEMS) != null) {
+				for (Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
 					properties.add(Properties.class.cast(obj));
 				}
 			}
@@ -1760,7 +1939,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				List<AssetMinute> assetMinutes = new ArrayList<AssetMinute>();
 				List<BigDecimal> assetMinuteValues = new ArrayList<BigDecimal>();
 
-				for(Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))){
+				for (Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
 					AssetMinute assetMinute = AssetMinute.class.cast(obj);
 					assetMinutes.add(assetMinute);
 					assetMinuteValues.add(assetMinute.getValue());
@@ -1768,7 +1947,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 				int i = assetMinutes.size() - 1;
 
-				if(i < 0) return;
+				if (i < 0)
+					return;
 
 				SMA sma;
 
