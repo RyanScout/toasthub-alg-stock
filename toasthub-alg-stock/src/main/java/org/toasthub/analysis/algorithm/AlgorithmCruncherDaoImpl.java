@@ -402,7 +402,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 	}
 
 	public void getAlgSets(Request request, Response response) {
-		String queryStr = "Select DISTINCT x FROM TechnicalIndicator x JOIN FETCH x.symbols as s WHERE x.evaluationPeriod =:evaluationPeriod";
+		String queryStr = "Select DISTINCT x FROM TechnicalIndicator x WHERE x.evaluationPeriod =:evaluationPeriod";
 		Query query = entityManager.createQuery(queryStr);
 		query.setParameter("evaluationPeriod", (String) request.getParam("EVALUATION_PERIOD"));
 
@@ -414,39 +414,37 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 
 			TechnicalIndicator x = (TechnicalIndicator) o;
 
-			x.getSymbols().stream().forEach(symbol -> {
+			switch (x.getTechnicalIndicatorType()) {
 
-				switch (x.getTechnicalIndicatorType()) {
+				case "GoldenCross":
+					SMA shortSMA = new SMA();
+					shortSMA.setSymbol(x.getSymbol());
+					shortSMA.setType(x.getShortSMAType());
+					SMA longSMA = new SMA();
+					longSMA.setSymbol(x.getSymbol());
+					longSMA.setType(x.getLongSMAType());
+					smaSet.add(shortSMA);
+					smaSet.add(longSMA);
+					break;
 
-					case "GoldenCross":
-						SMA shortSMA = new SMA();
-						shortSMA.setSymbol(symbol.getSymbol());
-						shortSMA.setType(x.getShortSMAType());
-						SMA longSMA = new SMA();
-						longSMA.setSymbol(symbol.getSymbol());
-						longSMA.setType(x.getLongSMAType());
-						smaSet.add(shortSMA);
-						smaSet.add(longSMA);
-						break;
+				case "UpperBollingerBand":
+					LBB lbb = new LBB();
+					lbb.setSymbol(x.getSymbol());
+					lbb.setType(x.getLBBType());
+					lbb.setStandardDeviations(x.getStandardDeviations());
+					lbbSet.add(lbb);
+					break;
 
-					case "UpperBollingerBand":
-						LBB lbb = new LBB();
-						lbb.setSymbol(symbol.getSymbol());
-						lbb.setType(x.getLBBType());
-						lbb.setStandardDeviations(x.getStandardDeviations());
-						lbbSet.add(lbb);
-						break;
-
-					case "LowerBollingerBand":
-						UBB ubb = new UBB();
-						ubb.setSymbol(symbol.getSymbol());
-						ubb.setType(x.getUBBType());
-						ubb.setStandardDeviations(x.getStandardDeviations());
-						ubbSet.add(ubb);
-						break;
-				}
-			});
+				case "LowerBollingerBand":
+					UBB ubb = new UBB();
+					ubb.setSymbol(x.getSymbol());
+					ubb.setType(x.getUBBType());
+					ubb.setStandardDeviations(x.getStandardDeviations());
+					ubbSet.add(ubb);
+					break;
+			}
 		}
+
 		response.addParam("SMA_SET", smaSet);
 		response.addParam("LBB_SET", lbbSet);
 		response.addParam("UBB_SET", ubbSet);
