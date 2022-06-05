@@ -29,6 +29,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
 import javax.persistence.Query;
 
 import org.hibernate.Hibernate;
@@ -249,7 +250,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 	}
 
 	@Override
-	public void item(Request request, Response response) throws Exception {
+	public void item(Request request, Response response) throws NoResultException{
 
 		String x = "";
 		switch ((String) request.getParam(GlobalConstant.IDENTIFIER)) {
@@ -416,7 +417,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 
 			switch (x.getTechnicalIndicatorType()) {
 
-				case "GoldenCross":
+				case TechnicalIndicator.GOLDENCROSS:
 					SMA shortSMA = new SMA();
 					shortSMA.setSymbol(x.getSymbol());
 					shortSMA.setType(x.getShortSMAType());
@@ -427,7 +428,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 					smaSet.add(longSMA);
 					break;
 
-				case "UpperBollingerBand":
+				case TechnicalIndicator.LOWERBOLLINGERBAND:
 					LBB lbb = new LBB();
 					lbb.setSymbol(x.getSymbol());
 					lbb.setType(x.getLBBType());
@@ -435,7 +436,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 					lbbSet.add(lbb);
 					break;
 
-				case "LowerBollingerBand":
+				case TechnicalIndicator.UPPERBOLLINGERBAND:
 					UBB ubb = new UBB();
 					ubb.setSymbol(x.getSymbol());
 					ubb.setType(x.getUBBType());

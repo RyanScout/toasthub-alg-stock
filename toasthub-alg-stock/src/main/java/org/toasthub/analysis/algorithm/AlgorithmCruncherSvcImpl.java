@@ -15,6 +15,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
+import javax.persistence.NoResultException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -1743,14 +1745,127 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 								e.printStackTrace();
 							}
 						}
+					});
 
+			lbbSetDay.stream()
+					.filter(lbb -> lbb.getSymbol().equals(symbol))
+					.forEach(lbb -> {
+
+						String lbbType = lbb.getType();
+						BigDecimal standardDeviations = lbb.getStandardDeviations();
+						int lbbPeriod = Integer.valueOf(lbb.getType().substring(0, lbb.getType().indexOf("-")));
+
+						request.addParam(GlobalConstant.IDENTIFIER, "LBB");
+						request.addParam(GlobalConstant.TYPE, lbbType);
+						request.addParam("STANDARD_DEVIATIONS", standardDeviations);
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.EPOCHSECONDS,
+								assetDays.get(assetDays.size() - 1).getEpochSeconds());
+
+						try {
+							algorithmCruncherDao.itemCount(request, response);
+						} catch (Exception e1) {
+							e1.printStackTrace();
+						}
+
+						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0
+								&& i >= lbbPeriod) {
+							lbb.setEpochSeconds(assetDays.get(i).getEpochSeconds());
+							lbb.setSymbol(symbol);
+							lbb.setType(lbbType);
+							lbb.setStandardDeviations(standardDeviations);
+
+							request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+							request.addParam(GlobalConstant.SYMBOL, symbol);
+							request.addParam(GlobalConstant.TYPE, lbbType);
+							request.addParam(GlobalConstant.EPOCHSECONDS, assetDays.get(i).getEpochSeconds());
+
+							try {
+								algorithmCruncherDao.item(request, response);
+								lbb.setValue(
+										LBB.calculateLBB(
+												assetDaysValues.subList(i - (lbbPeriod - 1), i + 1),
+												((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
+												standardDeviations));
+							} catch (NoResultException e) {
+								lbb.setValue(
+										LBB.calculateLBB(
+												assetDaysValues.subList(i - (lbbPeriod - 1), i + 1),
+												standardDeviations));
+							}
+
+							request.addParam(GlobalConstant.ITEM, lbb);
+
+							try {
+								algorithmCruncherDao.save(request, response);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+					});
+
+			ubbSetDay.stream()
+					.filter(ubb -> ubb.getSymbol().equals(symbol))
+					.forEach(ubb -> {
+
+						String ubbType = ubb.getType();
+						BigDecimal standardDeviations = ubb.getStandardDeviations();
+						int ubbPeriod = Integer.valueOf(ubbType.substring(0, ubbType.indexOf("-")));
+
+						request.addParam(GlobalConstant.IDENTIFIER, "UBB");
+						request.addParam(GlobalConstant.TYPE, ubbType);
+						request.addParam("STANDARD_DEVIATIONS", standardDeviations);
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.EPOCHSECONDS,
+								assetDays.get(assetDays.size() - 1).getEpochSeconds());
+
+						try {
+							algorithmCruncherDao.itemCount(request, response);
+						} catch (Exception e1) {
+							e1.printStackTrace();
+						}
+
+						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0
+								&& i >= ubbPeriod) {
+							ubb.setEpochSeconds(assetDays.get(i).getEpochSeconds());
+							ubb.setSymbol(symbol);
+							ubb.setType(ubbType);
+							ubb.setStandardDeviations(standardDeviations);
+
+							request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+							request.addParam(GlobalConstant.SYMBOL, symbol);
+							request.addParam(GlobalConstant.TYPE, ubbType);
+							request.addParam(GlobalConstant.EPOCHSECONDS, assetDays.get(i).getEpochSeconds());
+
+							try {
+								algorithmCruncherDao.item(request, response);
+								ubb.setValue(
+										UBB.calculateUBB(
+												assetDaysValues.subList(i - (ubbPeriod - 1), i + 1),
+												((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
+												standardDeviations));
+							} catch (NoResultException e) {
+								ubb.setValue(
+										UBB.calculateUBB(
+												assetDaysValues.subList(i - (ubbPeriod - 1), i + 1),
+												standardDeviations));
+							}
+
+							request.addParam(GlobalConstant.ITEM, ubb);
+
+							try {
+								algorithmCruncherDao.save(request, response);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
 					});
 
 		});
 
 		request.addParam("EVALUATION_PERIOD", "MINUTE");
 		request.addParam(GlobalConstant.IDENTIFIER, "TECHNICAL_INDICATOR");
-		
+
 		try {
 			algorithmCruncherDao.items(request, response);
 		} catch (Exception e) {
@@ -1822,6 +1937,118 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 							sma.setType(sma.getType());
 							sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - (smaPeriod - 1), i + 1)));
 							request.addParam(GlobalConstant.ITEM, sma);
+							try {
+								algorithmCruncherDao.save(request, response);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+
+					});
+
+			lbbSetMinute.stream()
+					.filter(lbb -> lbb.getSymbol().equals(symbol))
+					.forEach(lbb -> {
+
+						String lbbType = lbb.getType();
+						BigDecimal standardDeviations = lbb.getStandardDeviations();
+						int lbbPeriod = Integer.valueOf(lbb.getType().substring(0, lbb.getType().indexOf("-")));
+
+						request.addParam(GlobalConstant.IDENTIFIER, "LBB");
+						request.addParam(GlobalConstant.TYPE, lbbType);
+						request.addParam("STANDARD_DEVIATIONS", standardDeviations);
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.EPOCHSECONDS,
+								assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+						try {
+							algorithmCruncherDao.itemCount(request, response);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+
+						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0
+								&& i >= lbbPeriod) {
+							lbb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+							lbb.setSymbol(symbol);
+							lbb.setType(lbbType);
+							lbb.setStandardDeviations(standardDeviations);
+
+							request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+							request.addParam(GlobalConstant.SYMBOL, symbol);
+							request.addParam(GlobalConstant.TYPE, lbbType);
+							request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+
+							try {
+								algorithmCruncherDao.item(request, response);
+								lbb.setValue(
+										LBB.calculateLBB(
+												assetMinuteValues.subList(i - (lbbPeriod - 1), i + 1),
+												((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
+												standardDeviations));
+							} catch (NoResultException e) {
+								lbb.setValue(
+										LBB.calculateLBB(
+												assetMinuteValues.subList(i - (lbbPeriod - 1), i + 1),
+												standardDeviations));
+							}
+
+							request.addParam(GlobalConstant.ITEM, lbb);
+							try {
+								algorithmCruncherDao.save(request, response);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+
+					});
+
+			ubbSetMinute.stream()
+					.filter(ubb -> ubb.getSymbol().equals(symbol))
+					.forEach(ubb -> {
+
+						String ubbType = ubb.getType();
+						BigDecimal standardDeviations = ubb.getStandardDeviations();
+						int ubbPeriod = Integer.valueOf(ubb.getType().substring(0, ubb.getType().indexOf("-")));
+
+						request.addParam(GlobalConstant.IDENTIFIER, "UBB");
+						request.addParam(GlobalConstant.TYPE, ubbType);
+						request.addParam("STANDARD_DEVIATIONS", standardDeviations);
+						request.addParam(GlobalConstant.SYMBOL, symbol);
+						request.addParam(GlobalConstant.EPOCHSECONDS,
+								assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+						try {
+							algorithmCruncherDao.itemCount(request, response);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+
+						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) == 0
+								&& i >= ubbPeriod) {
+							ubb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+							ubb.setSymbol(symbol);
+							ubb.setType(ubbType);
+							ubb.setStandardDeviations(standardDeviations);
+
+							request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+							request.addParam(GlobalConstant.SYMBOL, symbol);
+							request.addParam(GlobalConstant.TYPE, ubbType);
+							request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+
+							try {
+								algorithmCruncherDao.item(request, response);
+								ubb.setValue(
+										UBB.calculateUBB(
+												assetMinuteValues.subList(i - (ubbPeriod - 1), i + 1),
+												((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
+												standardDeviations));
+							} catch (NoResultException e) {
+								ubb.setValue(
+										UBB.calculateUBB(
+												assetMinuteValues.subList(i - (ubbPeriod - 1), i + 1),
+												standardDeviations));
+							}
+
+							request.addParam(GlobalConstant.ITEM, ubb);
 							try {
 								algorithmCruncherDao.save(request, response);
 							} catch (Exception e) {
