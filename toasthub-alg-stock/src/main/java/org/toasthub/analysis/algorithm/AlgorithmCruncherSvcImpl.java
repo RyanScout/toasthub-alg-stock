@@ -153,14 +153,13 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		if (tradeAnalysisJobRunning.get()) {
 			System.out.println("Trade analysis is currently running skipping this time");
 			return;
-
-		} else {
-			new Thread(() -> {
-				tradeAnalysisJobRunning.set(true);
-				this.process(request, response);
-				tradeAnalysisJobRunning.set(false);
-			}).start();
 		}
+		new Thread(() -> {
+			tradeAnalysisJobRunning.set(true);
+			process(request, response);
+			tradeAnalysisJobRunning.set(false);
+		}).start();
+
 	}
 
 	@Override
