@@ -294,7 +294,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 	}
 
 	@Override
-	public void initializedAssetDay(Request request, Response response) throws Exception {
+	public void initializedAssetDay(Request request, Response response) throws NoResultException {
 		String queryStr = "SELECT DISTINCT x FROM AssetDay" + " AS x"
 				+ " WHERE x.epochSeconds =:epochSeconds"
 				+ " AND x.type =: type AND x.symbol =:symbol";
