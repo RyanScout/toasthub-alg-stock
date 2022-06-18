@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.Set;
 
 import javax.persistence.CascadeType;
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
@@ -22,6 +23,7 @@ public class AssetDay extends BaseEntity{
         private BigDecimal close;
         private BigDecimal high;
         private BigDecimal low;
+        private long lastUpdated;
         private long epochSeconds;
         private long volume;
         private BigDecimal vwap;
@@ -33,6 +35,15 @@ public class AssetDay extends BaseEntity{
             this.setIdentifier("AssetDay");
         }
     
+        @Column(name="last_updated")
+        public long getLastUpdated() {
+            return lastUpdated;
+        }
+
+        public void setLastUpdated(long lastUpdated) {
+            this.lastUpdated = lastUpdated;
+        }
+
         public String getSymbol() {
             return symbol;
         }

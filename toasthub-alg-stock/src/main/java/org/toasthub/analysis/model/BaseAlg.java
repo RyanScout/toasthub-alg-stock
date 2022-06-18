@@ -18,9 +18,18 @@ public abstract class BaseAlg extends BaseEntity{
         private BigDecimal value;
         private String type;
         private long epochSeconds;
+        private long correspondingDay;
     
         public BaseAlg() {
             super();
+        }
+
+        public long getCorrespondingDay() {
+            return correspondingDay;
+        }
+
+        public void setCorrespondingDay(long correspondingDay) {
+            this.correspondingDay = correspondingDay;
         }
 
         public BaseAlg(String symbol) {
