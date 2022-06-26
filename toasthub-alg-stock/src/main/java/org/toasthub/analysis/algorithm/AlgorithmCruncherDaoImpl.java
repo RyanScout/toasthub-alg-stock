@@ -16,16 +16,12 @@
 
 package org.toasthub.analysis.algorithm;
 
-import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
 import javax.persistence.EntityManager;
@@ -99,9 +95,9 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 	}
 
 	@Override
-	public void saveAll(List<AssetDay> assetDays) {
-		for (AssetDay tempAssetDay : assetDays) {
-			entityManager.merge(tempAssetDay);
+	public void saveAll(Request request, Response response) {
+		for(Object o : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))){
+			entityManager.merge(o);
 		}
 	}
 
@@ -134,9 +130,6 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 			case "AssetMinute":
 				x = "AssetMinute";
 				break;
-			case "TRADE_SIGNAL":
-				getTradeSignals(request, response);
-				return;
 			case "TECHNICAL_INDICATOR":
 				getAlgSets(request, response);
 				return;
@@ -328,79 +321,6 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 			System.out.println("Symbol does not match symbols");
 	}
 
-	public void getTradeSignals(Request request, Response response) {
-
-		Query query = null;
-		String evalPeriod = null;
-		List<Properties> properties = new ArrayList<Properties>();
-
-		switch ((String) request.getParam("EVAL_PERIOD")) {
-			case "DAY":
-				evalPeriod = "DAY";
-				break;
-			case "MINUTE":
-				evalPeriod = "MINUTE";
-				break;
-			default:
-				System.out.println("Invalid request");
-				return;
-		}
-
-		switch ((String) request.getParam("TRADE_SIGNAL")) {
-			case "GoldenCross":
-				query = entityManager.createQuery(
-						"Select x.shortSMAType , x.longSMAType , x.symbol FROM GoldenCross x WHERE x.evalPeriod =:evalPeriod");
-				query.setParameter("evalPeriod", evalPeriod);
-
-				for (Object obj : query.getResultList()) {
-					Object[] arr = (Object[]) obj;
-					Properties p = new Properties();
-					p.put("SHORT_SMA_TYPE", arr[0]);
-					p.put("LONG_SMA_TYPE", arr[1]);
-					p.put("SYMBOL", arr[2]);
-					properties.add(p);
-				}
-
-				break;
-
-			case "LowerBollingerBand":
-				query = entityManager.createQuery(
-						"Select x.LBBType , x.standardDeviations , x.symbol FROM LowerBollingerBand x WHERE x.evalPeriod =:evalPeriod");
-				query.setParameter("evalPeriod", evalPeriod);
-
-				for (Object obj : query.getResultList()) {
-					Object[] arr = (Object[]) obj;
-					Properties p = new Properties();
-					p.put("LBB_TYPE", arr[0]);
-					p.put("STANDARD_DEVIATIONS", arr[1]);
-					p.put("SYMBOL", arr[2]);
-					properties.add(p);
-				}
-
-				break;
-
-			case "UpperBollingerBand":
-				query = entityManager.createQuery(
-						"Select x.UBBType , x.standardDeviations , x.symbol FROM UpperBollingerBand x WHERE x.evalPeriod =:evalPeriod");
-				query.setParameter("evalPeriod", evalPeriod);
-
-				for (Object obj : query.getResultList()) {
-					Object[] arr = (Object[]) obj;
-					Properties p = new Properties();
-					p.put("UBB_TYPE", arr[0]);
-					p.put("STANDARD_DEVIATIONS", arr[1]);
-					p.put("SYMBOL", arr[2]);
-					properties.add(p);
-				}
-
-				break;
-			default:
-				System.out.println("Invalid request");
-				return;
-		}
-
-		response.addParam(GlobalConstant.ITEMS, properties);
-	}
 
 	public void getAlgSets(Request request, Response response) {
 		String queryStr = "Select DISTINCT x FROM TechnicalIndicator x WHERE x.evaluationPeriod =:evaluationPeriod";

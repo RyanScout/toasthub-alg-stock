@@ -10,7 +10,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
@@ -59,11 +58,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	@Override
-	protected void finalize() throws Throwable {
-		super.finalize();
-	}
-
-	@Override
 	public void process(Request request, Response response) {
 		String action = (String) request.getParams().get("action");
 
@@ -85,10 +79,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				System.out.println("CryptoData Loaded");
 				backloadStockData(request, response);
 				System.out.println("StockData Loaded");
-				backloadAlgDays(request, response);
-				System.out.println("Algorithm Days Loaded");
-				backloadAlgMinutes(request, response);
-				System.out.println("Algorithm Minutes Loaded");
 				break;
 			case "LOAD":
 				loadStockData(request, response);
@@ -266,7 +256,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					second = second.plusDays(1);
 				}
 
-				algorithmCruncherDao.saveAll(stockDays);
+				request.addParam(GlobalConstant.ITEMS, stockDays);
+				algorithmCruncherDao.saveAll(request, response);
 			}
 
 		} catch (Exception e) {
@@ -372,478 +363,13 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					second = second.plusDays(1);
 				}
 
-				algorithmCruncherDao.saveAll(cryptoDays);
+				request.addParam(GlobalConstant.ITEMS, cryptoDays);
+				algorithmCruncherDao.saveAll(request, response);
 			}
 
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void backloadAlgDays(Request request, Response response) {
-		// try {
-		// for (String symbol : Symbol.SYMBOLS) {
-
-		// EMA ema12;
-		// EMA ema26;
-		// SMA sma;
-		// MACD macd;
-		// LBB lbb;
-		// UBB ubb;
-		// SL sl;
-
-		// request.addParam(GlobalConstant.IDENTIFIER, "AssetDay");
-		// request.addParam(GlobalConstant.SYMBOL, symbol);
-		// algorithmCruncherDao.items(request, response);
-
-		// List<AssetDay> assetDays = (List<AssetDay>)
-		// response.getParam(GlobalConstant.ITEMS);
-		// List<BigDecimal> assetDaysValues = new ArrayList<BigDecimal>();
-		// for (AssetDay assetDay : assetDays)
-		// assetDaysValues.add(assetDay.getClose());
-
-		// for (int i = 0; i < assetDays.size(); i++) {
-
-		// ema12 = new EMA(symbol);
-		// ema26 = new EMA(symbol);
-		// sma = new SMA(symbol);
-		// macd = new MACD(symbol);
-		// lbb = new LBB(symbol);
-		// ubb = new UBB(symbol);
-		// sl = new SL(symbol);
-
-		// if (i >= 49) {
-		// sma.setEpochSeconds(assetDays.get(i).getEpochSeconds());
-		// sma.setSymbol(symbol);
-		// sma.setType("50-day");
-		// sma.setValue(SMA.calculateSMA(assetDaysValues.subList(i - 49, i + 1)));
-		// request.addParam(GlobalConstant.ITEM, sma);
-		// algorithmCruncherDao.save(request, response);
-		// }
-
-		// if (i >= 19) {
-		// sma.setEpochSeconds(assetDays.get(i).getEpochSeconds());
-		// sma.setSymbol(symbol);
-		// sma.setType("20-day");
-		// sma.setValue(SMA.calculateSMA(assetDaysValues.subList(i - 19, i + 1)));
-		// request.addParam(GlobalConstant.ITEM, sma);
-		// algorithmCruncherDao.save(request, response);
-		// }
-
-		// if (i >= 14) {
-		// sma.setEpochSeconds(assetDays.get(i).getEpochSeconds());
-		// sma.setSymbol(symbol);
-		// sma.setType("15-day");
-		// sma.setValue(SMA.calculateSMA(assetDaysValues.subList(i - 14, i + 1)));
-		// request.addParam(GlobalConstant.ITEM, sma);
-		// algorithmCruncherDao.save(request, response);
-		// }
-
-		// if (i >= 25) {
-		// ema26.setEpochSeconds(assetDays.get(i).getEpochSeconds());
-		// ema26.setSymbol(symbol);
-		// ema26.setType("26-day");
-
-		// request.addParam(GlobalConstant.IDENTIFIER, "EMA");
-		// request.addParam(GlobalConstant.TYPE, "26-day");
-		// request.addParam(GlobalConstant.SYMBOL, symbol);
-		// request.addParam(GlobalConstant.EPOCHSECONDS, assetDays.get(i -
-		// 1).getEpochSeconds());
-
-		// try {
-		// algorithmCruncherDao.item(request, response);
-		// ema26.setValue(EMA.calculateEMA(assetDaysValues.subList(i - 25, i + 1),
-		// ((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-		// } catch (Exception e) {
-		// if (e.getMessage().equals("No entity found for query"))
-		// ema26.setValue(EMA.calculateEMA(assetDaysValues.subList(i - 25, i + 1)));
-		// else
-		// System.out.println(e.getMessage());
-		// }
-
-		// request.addParam(GlobalConstant.ITEM, ema26);
-		// algorithmCruncherDao.save(request, response);
-		// }
-
-		// if (i >= 11) {
-		// ema12.setEpochSeconds(assetDays.get(i).getEpochSeconds());
-		// ema12.setSymbol(symbol);
-		// ema12.setType("12-day");
-
-		// request.addParam(GlobalConstant.IDENTIFIER, "EMA");
-		// request.addParam(GlobalConstant.TYPE, "12-day");
-		// request.addParam(GlobalConstant.SYMBOL, symbol);
-		// request.addParam(GlobalConstant.EPOCHSECONDS, assetDays.get(i -
-		// 1).getEpochSeconds());
-
-		// try {
-		// algorithmCruncherDao.item(request, response);
-		// ema12.setValue(EMA.calculateEMA(assetDaysValues.subList(i - 11, i + 1),
-		// ((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-		// } catch (Exception e) {
-		// if (e.getMessage().equals("No entity found for query"))
-		// ema12.setValue(EMA.calculateEMA(assetDaysValues.subList(i - 11, i + 1)));
-		// else
-		// System.out.println(e.getMessage());
-		// }
-
-		// request.addParam(GlobalConstant.ITEM, ema12);
-		// algorithmCruncherDao.save(request, response);
-		// }
-
-		// if (i >= 25) {
-		// macd.setEpochSeconds(assetDays.get(i).getEpochSeconds());
-		// macd.setSymbol(symbol);
-		// macd.setType("Day");
-
-		// request.addParam(GlobalConstant.IDENTIFIER, "EMA");
-		// request.addParam(GlobalConstant.SYMBOL, symbol);
-		// request.addParam(GlobalConstant.EPOCHSECONDS,
-		// assetDays.get(i).getEpochSeconds());
-		// try {
-		// request.addParam(GlobalConstant.TYPE, "26-day");
-		// algorithmCruncherDao.item(request, response);
-		// EMA longEMA = (EMA) response.getParam(GlobalConstant.ITEM);
-		// request.addParam(GlobalConstant.TYPE, "12-day");
-		// algorithmCruncherDao.item(request, response);
-		// EMA shortEMA = (EMA) response.getParam(GlobalConstant.ITEM);
-		// macd.setValue(shortEMA.getValue().subtract(longEMA.getValue()));
-		// } catch (Exception e) {
-		// if (e.getMessage().equals("No entity found for query"))
-		// macd.setValue(MACD.calculateMACD(assetDaysValues.subList(i - 25, i + 1)));
-		// else
-		// System.out.println(e.getMessage());
-		// }
-
-		// request.addParam(GlobalConstant.ITEM, macd);
-		// algorithmCruncherDao.save(request, response);
-		// }
-
-		// if (i >= 19) {
-		// lbb.setEpochSeconds(assetDays.get(i).getEpochSeconds());
-		// lbb.setSymbol(symbol);
-		// lbb.setType("20-day");
-
-		// request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-		// request.addParam(GlobalConstant.SYMBOL, symbol);
-		// request.addParam(GlobalConstant.TYPE, "20-day");
-		// request.addParam(GlobalConstant.EPOCHSECONDS,
-		// assetDays.get(i).getEpochSeconds());
-
-		// try {
-		// algorithmCruncherDao.item(request, response);
-		// lbb.setValue(LBB.calculateLBB(assetDaysValues.subList(i - 19, i + 1),
-		// ((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-		// } catch (Exception e) {
-		// if (e.getMessage().equals("No entity found for query"))
-		// lbb.setValue(LBB.calculateLBB(assetDaysValues.subList(i - 19, i + 1)));
-		// else
-		// System.out.println(e.getMessage());
-		// }
-
-		// request.addParam(GlobalConstant.ITEM, lbb);
-		// algorithmCruncherDao.save(request, response);
-		// }
-
-		// if (i >= 19) {
-		// ubb.setEpochSeconds(assetDays.get(i).getEpochSeconds());
-		// ubb.setSymbol(symbol);
-		// ubb.setType("20-day");
-
-		// request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-		// request.addParam(GlobalConstant.SYMBOL, symbol);
-		// request.addParam(GlobalConstant.TYPE, "20-day");
-		// request.addParam(GlobalConstant.EPOCHSECONDS,
-		// assetDays.get(i).getEpochSeconds());
-
-		// try {
-		// algorithmCruncherDao.item(request, response);
-		// ubb.setValue(UBB.calculateUBB(assetDaysValues.subList(i - 19, i + 1),
-		// ((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-		// } catch (Exception e) {
-		// if (e.getMessage().equals("No entity found for query"))
-		// ubb.setValue(UBB.calculateUBB(assetDaysValues.subList(i - 19, i + 1)));
-		// else
-		// System.out.println(e.getMessage());
-		// }
-
-		// request.addParam(GlobalConstant.ITEM, ubb);
-		// algorithmCruncherDao.save(request, response);
-		// }
-
-		// if (i >= 32) {
-		// sl.setEpochSeconds(assetDays.get(i).getEpochSeconds());
-		// sl.setSymbol(symbol);
-		// sl.setType("Day");
-
-		// request.addParam(GlobalConstant.IDENTIFIER, "MACD");
-		// request.addParam(GlobalConstant.SYMBOL, symbol);
-		// request.addParam(GlobalConstant.TYPE, "DAY");
-
-		// try {
-		// BigDecimal[] macdArr = new BigDecimal[9];
-
-		// for (int f = 0; f < 9; f++) {
-		// request.addParam(GlobalConstant.EPOCHSECONDS, assetDays.get(i -
-		// f).getEpochSeconds());
-		// algorithmCruncherDao.item(request, response);
-		// macdArr[f] = (((MACD) response.getParam(GlobalConstant.ITEM)).getValue());
-		// }
-
-		// sl.setValue(SL.calculateSL(macdArr));
-
-		// } catch (Exception e) {
-		// if (e.getMessage().equals("No entity found for query"))
-		// sl.setValue(SL.calculateSL(assetDaysValues.subList(i - 32, i + 1)));
-		// else
-		// System.out.println(e.getMessage());
-		// }
-
-		// request.addParam(GlobalConstant.ITEM, sl);
-		// algorithmCruncherDao.save(request, response);
-		// }
-		// }
-		// }
-
-		// } catch (Exception e) {
-		// e.printStackTrace();
-		// }
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public void backloadAlgMinutes(Request request, Response response) {
-		/*
-		 * try {
-		 * for (String symbol : Symbol.SYMBOLS) {
-		 * 
-		 * EMA ema12;
-		 * EMA ema26;
-		 * SMA sma;
-		 * MACD macd;
-		 * LBB lbb;
-		 * UBB ubb;
-		 * SL sl;
-		 * 
-		 * request.addParam(GlobalConstant.IDENTIFIER, "AssetMinute");
-		 * request.addParam(GlobalConstant.SYMBOL, symbol);
-		 * algorithmCruncherDao.items(request, response);
-		 * 
-		 * List<AssetMinute> assetMinutes = (List<AssetMinute>)
-		 * response.getParam(GlobalConstant.ITEMS);
-		 * List<BigDecimal> assetMinuteValues = new ArrayList<BigDecimal>();
-		 * for (AssetMinute assetMinute : assetMinutes)
-		 * assetMinuteValues.add(assetMinute.getValue());
-		 * 
-		 * for (int i = 0; i < assetMinutes.size(); i++) {
-		 * 
-		 * ema12 = new EMA(symbol);
-		 * ema26 = new EMA(symbol);
-		 * sma = new SMA(symbol);
-		 * macd = new MACD(symbol);
-		 * lbb = new LBB(symbol);
-		 * ubb = new UBB(symbol);
-		 * sl = new SL(symbol);
-		 * 
-		 * if (i >= 49) {
-		 * sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-		 * sma.setSymbol(symbol);
-		 * sma.setType("50-minute");
-		 * sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - 49, i + 1)));
-		 * request.addParam(GlobalConstant.ITEM, sma);
-		 * algorithmCruncherDao.save(request, response);
-		 * }
-		 * 
-		 * if (i >= 19) {
-		 * sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-		 * sma.setSymbol(symbol);
-		 * sma.setType("20-minute");
-		 * sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - 19, i + 1)));
-		 * request.addParam(GlobalConstant.ITEM, sma);
-		 * algorithmCruncherDao.save(request, response);
-		 * }
-		 * 
-		 * if (i >= 14) {
-		 * sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-		 * sma.setSymbol(symbol);
-		 * sma.setType("15-minute");
-		 * sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - 14, i + 1)));
-		 * request.addParam(GlobalConstant.ITEM, sma);
-		 * algorithmCruncherDao.save(request, response);
-		 * }
-		 * 
-		 * if (i >= 25) {
-		 * ema26.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-		 * ema26.setSymbol(symbol);
-		 * ema26.setType("26-minute");
-		 * 
-		 * request.addParam(GlobalConstant.IDENTIFIER, "EMA");
-		 * request.addParam(GlobalConstant.TYPE, "26-minute");
-		 * request.addParam(GlobalConstant.SYMBOL, symbol);
-		 * request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i -
-		 * 1).getEpochSeconds());
-		 * 
-		 * try {
-		 * algorithmCruncherDao.item(request, response);
-		 * ema26.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 25, i + 1),
-		 * ((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-		 * } catch (Exception e) {
-		 * if (e.getMessage().equals("No entity found for query"))
-		 * ema26.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 25, i + 1)));
-		 * else
-		 * System.out.println(e.getMessage());
-		 * }
-		 * 
-		 * request.addParam(GlobalConstant.ITEM, ema26);
-		 * algorithmCruncherDao.save(request, response);
-		 * }
-		 * 
-		 * if (i >= 11) {
-		 * ema12.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-		 * ema12.setSymbol(symbol);
-		 * ema12.setType("12-minute");
-		 * 
-		 * request.addParam(GlobalConstant.IDENTIFIER, "EMA");
-		 * request.addParam(GlobalConstant.TYPE, "12-minute");
-		 * request.addParam(GlobalConstant.SYMBOL, symbol);
-		 * request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i -
-		 * 1).getEpochSeconds());
-		 * 
-		 * try {
-		 * algorithmCruncherDao.item(request, response);
-		 * ema12.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 11, i + 1),
-		 * ((EMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-		 * } catch (Exception e) {
-		 * if (e.getMessage().equals("No entity found for query"))
-		 * ema12.setValue(EMA.calculateEMA(assetMinuteValues.subList(i - 11, i + 1)));
-		 * else
-		 * System.out.println(e.getMessage());
-		 * }
-		 * 
-		 * request.addParam(GlobalConstant.ITEM, ema12);
-		 * algorithmCruncherDao.save(request, response);
-		 * }
-		 * 
-		 * if (i >= 25) {
-		 * macd.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-		 * macd.setSymbol(symbol);
-		 * macd.setType("Minute");
-		 * 
-		 * request.addParam(GlobalConstant.IDENTIFIER, "EMA");
-		 * request.addParam(GlobalConstant.SYMBOL, symbol);
-		 * request.addParam(GlobalConstant.EPOCHSECONDS,
-		 * assetMinutes.get(i).getEpochSeconds());
-		 * try {
-		 * request.addParam(GlobalConstant.TYPE, "26-minute");
-		 * algorithmCruncherDao.item(request, response);
-		 * EMA longEMA = (EMA) response.getParam(GlobalConstant.ITEM);
-		 * request.addParam(GlobalConstant.TYPE, "12-minute");
-		 * algorithmCruncherDao.item(request, response);
-		 * EMA shortEMA = (EMA) response.getParam(GlobalConstant.ITEM);
-		 * macd.setValue(shortEMA.getValue().subtract(longEMA.getValue()));
-		 * } catch (Exception e) {
-		 * if (e.getMessage().equals("No entity found for query"))
-		 * macd.setValue(MACD.calculateMACD(assetMinuteValues.subList(i - 25, i + 1)));
-		 * else
-		 * System.out.println(e.getMessage());
-		 * }
-		 * 
-		 * request.addParam(GlobalConstant.ITEM, macd);
-		 * algorithmCruncherDao.save(request, response);
-		 * }
-		 * 
-		 * if (i >= 19) {
-		 * lbb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-		 * lbb.setSymbol(symbol);
-		 * lbb.setType("20-minute");
-		 * 
-		 * request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-		 * request.addParam(GlobalConstant.SYMBOL, symbol);
-		 * request.addParam(GlobalConstant.TYPE, "20-minute");
-		 * request.addParam(GlobalConstant.EPOCHSECONDS,
-		 * assetMinutes.get(i).getEpochSeconds());
-		 * 
-		 * try {
-		 * algorithmCruncherDao.item(request, response);
-		 * lbb.setValue(LBB.calculateLBB(assetMinuteValues.subList(i - 19, i + 1),
-		 * ((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-		 * } catch (Exception e) {
-		 * if (e.getMessage().equals("No entity found for query"))
-		 * lbb.setValue(LBB.calculateLBB(assetMinuteValues.subList(i - 19, i + 1)));
-		 * else
-		 * System.out.println(e.getMessage());
-		 * }
-		 * 
-		 * request.addParam(GlobalConstant.ITEM, lbb);
-		 * algorithmCruncherDao.save(request, response);
-		 * }
-		 * 
-		 * if (i >= 19) {
-		 * ubb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-		 * ubb.setSymbol(symbol);
-		 * ubb.setType("20-minute");
-		 * 
-		 * request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-		 * request.addParam(GlobalConstant.SYMBOL, symbol);
-		 * request.addParam(GlobalConstant.TYPE, "20-minute");
-		 * request.addParam(GlobalConstant.EPOCHSECONDS,
-		 * assetMinutes.get(i).getEpochSeconds());
-		 * 
-		 * try {
-		 * algorithmCruncherDao.item(request, response);
-		 * ubb.setValue(UBB.calculateUBB(assetMinuteValues.subList(i - 19, i + 1),
-		 * ((SMA) response.getParam(GlobalConstant.ITEM)).getValue()));
-		 * } catch (Exception e) {
-		 * if (e.getMessage().equals("No entity found for query"))
-		 * ubb.setValue(UBB.calculateUBB(assetMinuteValues.subList(i - 19, i + 1)));
-		 * else
-		 * System.out.println(e.getMessage());
-		 * }
-		 * 
-		 * request.addParam(GlobalConstant.ITEM, ubb);
-		 * algorithmCruncherDao.save(request, response);
-		 * }
-		 * 
-		 * if (i >= 32) {
-		 * sl.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-		 * sl.setSymbol(symbol);
-		 * sl.setType("Minute");
-		 * 
-		 * request.addParam(GlobalConstant.IDENTIFIER, "MACD");
-		 * request.addParam(GlobalConstant.SYMBOL, symbol);
-		 * request.addParam(GlobalConstant.TYPE, "Minute");
-		 * 
-		 * try {
-		 * BigDecimal[] macdArr = new BigDecimal[9];
-		 * 
-		 * for (int f = 0; f < 9; f++) {
-		 * request.addParam(GlobalConstant.EPOCHSECONDS,
-		 * assetMinutes.get(i - f).getEpochSeconds());
-		 * algorithmCruncherDao.item(request, response);
-		 * macdArr[f] = (((MACD) response.getParam(GlobalConstant.ITEM)).getValue());
-		 * }
-		 * 
-		 * sl.setValue(SL.calculateSL(macdArr));
-		 * 
-		 * } catch (Exception e) {
-		 * if (e.getMessage().equals("No entity found for query"))
-		 * sl.setValue(SL.calculateSL(assetMinuteValues.subList(i - 32, i + 1)));
-		 * else
-		 * System.out.println(e.getMessage());
-		 * }
-		 * 
-		 * request.addParam(GlobalConstant.ITEM, sl);
-		 * algorithmCruncherDao.save(request, response);
-		 * }
-		 * }
-		 * }
-		 * 
-		 * } catch (Exception e) {
-		 * e.printStackTrace();
-		 * }
-		 */
 	}
 
 	@Override
@@ -1005,6 +531,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	public void loadAlgs(Request request, Response response) {
 		request.addParam("EVALUATION_PERIOD", "DAY");
 		request.addParam(GlobalConstant.IDENTIFIER, "TECHNICAL_INDICATOR");
+
 		try {
 			algorithmCruncherDao.items(request, response);
 		} catch (Exception e) {
@@ -1057,6 +584,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			if (i < 0)
 				return;
 
+			List<SMA> smaListDay = new ArrayList<SMA>();
 			smaSetDay.stream()
 					.filter(sma -> sma.getSymbol().equals(symbol))
 					.forEach(sma -> {
@@ -1079,7 +607,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 							e.printStackTrace();
 						}
 
-						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
+						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) != 0) {
 							return;
 						}
 
@@ -1089,15 +617,13 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						sma.setCorrespondingDay(assetDays.get(i).getEpochSeconds());
 
 						sma.setValue(SMA.calculateSMA(assetDaysValues.subList(i - (smaPeriod - 1), i + 1)));
-						request.addParam(GlobalConstant.ITEM, sma);
-
-						try {
-							algorithmCruncherDao.save(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
+						smaListDay.add(sma);
 					});
 
+			request.addParam(GlobalConstant.ITEMS, smaListDay);
+			algorithmCruncherDao.saveAll(request, response);
+
+			List<LBB> lbbListDay = new ArrayList<LBB>();
 			lbbSetDay.stream()
 					.filter(lbb -> lbb.getSymbol().equals(symbol))
 					.forEach(lbb -> {
@@ -1152,16 +678,13 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 											assetDaysValues.subList(i - (lbbPeriod - 1), i + 1),
 											standardDeviations));
 						}
-
-						request.addParam(GlobalConstant.ITEM, lbb);
-
-						try {
-							algorithmCruncherDao.save(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
+						lbbListDay.add(lbb);
 					});
 
+			request.addParam(GlobalConstant.ITEMS, lbbListDay);
+			algorithmCruncherDao.saveAll(request, response);
+
+			List<UBB> ubbListDay = new ArrayList<UBB>();
 			ubbSetDay.stream()
 					.filter(ubb -> ubb.getSymbol().equals(symbol))
 					.forEach(ubb -> {
@@ -1216,16 +739,11 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 											assetDaysValues.subList(i - (ubbPeriod - 1), i + 1),
 											standardDeviations));
 						}
-
-						request.addParam(GlobalConstant.ITEM, ubb);
-
-						try {
-							algorithmCruncherDao.save(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
+						ubbListDay.add(ubb);
 					});
 
+			request.addParam(GlobalConstant.ITEMS, ubbListDay);
+			algorithmCruncherDao.saveAll(request, response);
 		});
 
 		request.addParam("EVALUATION_PERIOD", "MINUTE");
@@ -1278,6 +796,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			if (i < 0)
 				return;
 
+			List<SMA> smaListMinute = new ArrayList<SMA>();
 			smaSetMinute.stream()
 					.filter(sma -> sma.getSymbol().equals(symbol))
 					.forEach(sma -> {
@@ -1307,14 +826,13 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						sma.setType(sma.getType());
 
 						sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - (smaPeriod - 1), i + 1)));
-						request.addParam(GlobalConstant.ITEM, sma);
-						try {
-							algorithmCruncherDao.save(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
+						smaListMinute.add(sma);
 					});
 
+			request.addParam(GlobalConstant.ITEMS, smaListMinute);
+			algorithmCruncherDao.saveAll(request, response);
+
+			List<LBB> lbbListMinute = new ArrayList<LBB>();
 			lbbSetMinute.stream()
 					.filter(lbb -> lbb.getSymbol().equals(symbol))
 					.forEach(lbb -> {
@@ -1366,15 +884,13 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 											assetMinuteValues.subList(i - (lbbPeriod - 1), i + 1),
 											standardDeviations));
 						}
-
-						request.addParam(GlobalConstant.ITEM, lbb);
-						try {
-							algorithmCruncherDao.save(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
+						lbbListMinute.add(lbb);
 					});
 
+			request.addParam(GlobalConstant.ITEMS, lbbListMinute);
+			algorithmCruncherDao.saveAll(request, response);
+
+			List<UBB> ubbListMinute = new ArrayList<UBB>();
 			ubbSetMinute.stream()
 					.filter(ubb -> ubb.getSymbol().equals(symbol))
 					.forEach(ubb -> {
@@ -1425,17 +941,15 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 											assetMinuteValues.subList(i - (ubbPeriod - 1), i + 1),
 											standardDeviations));
 						}
-
-						request.addParam(GlobalConstant.ITEM, ubb);
-						try {
-							algorithmCruncherDao.save(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-
+						ubbListMinute.add(ubb);
 					});
 
+			request.addParam(GlobalConstant.ITEMS, ubbListMinute);
+			algorithmCruncherDao.saveAll(request, response);
 		});
 	}
 
+	public void backloadAlg(Request request, Response response) {
+
+	}
 }
