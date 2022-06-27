@@ -51,7 +51,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 	final AtomicBoolean tradeAnalysisJobRunning = new AtomicBoolean(false);
 
-	public static final int START_OF_2021 = 1609477200;
+	public static final int START_OF_2022 = 1640998860;
 
 	// Constructors
 	public AlgorithmCruncherSvcImpl() {
@@ -141,7 +141,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		Response response = new Response();
 
 		if (tradeAnalysisJobRunning.get()) {
-			System.out.println("Trade analysis is currently running skipping this time");
+			System.out.println("Database is currently running skipping this time");
 			return;
 		}
 		new Thread(() -> {
@@ -165,7 +165,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				List<StockBar> stockBars;
 				ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York")).truncatedTo(ChronoUnit.DAYS);
 				ZonedDateTime first = ZonedDateTime
-						.ofInstant(Instant.ofEpochSecond(START_OF_2021), ZoneId.of("America/New_York"))
+						.ofInstant(Instant.ofEpochSecond(START_OF_2022), ZoneId.of("America/New_York"))
 						.truncatedTo(ChronoUnit.DAYS);
 				ZonedDateTime second = first.plusDays(1).minusMinutes(1);
 				AssetDay stockDay;
@@ -275,7 +275,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				List<CryptoBar> cryptoBars;
 				ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York"));
 				ZonedDateTime first = ZonedDateTime
-						.ofInstant(Instant.ofEpochSecond(START_OF_2021), ZoneId.of("America/New_York"))
+						.ofInstant(Instant.ofEpochSecond(START_OF_2022), ZoneId.of("America/New_York"))
 						.truncatedTo(ChronoUnit.DAYS);
 				ZonedDateTime second = first.plusDays(1);
 				AssetDay cryptoDay;
@@ -821,6 +821,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
 							return;
 						}
+
 						sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
 						sma.setSymbol(symbol);
 						sma.setType(sma.getType());
@@ -947,9 +948,5 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			request.addParam(GlobalConstant.ITEMS, ubbListMinute);
 			algorithmCruncherDao.saveAll(request, response);
 		});
-	}
-
-	public void backloadAlg(Request request, Response response) {
-
 	}
 }

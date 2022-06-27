@@ -96,7 +96,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 
 	@Override
 	public void saveAll(Request request, Response response) {
-		for(Object o : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))){
+		for (Object o : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))) {
 			entityManager.merge(o);
 		}
 	}
@@ -243,7 +243,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 	}
 
 	@Override
-	public void item(Request request, Response response) throws NoResultException{
+	public void item(Request request, Response response) throws NoResultException {
 
 		String x = "";
 		switch ((String) request.getParam(GlobalConstant.IDENTIFIER)) {
@@ -302,25 +302,26 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 	}
 
 	@Override
-	@SuppressWarnings("unchecked")
 	public void getRecentAssetMinutes(Request request, Response response) {
 		String x = (String) request.getParam(GlobalConstant.SYMBOL);
 
-		if (Arrays.asList(Symbol.SYMBOLS).contains(x)) {
-
-			String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_minute WHERE symbol = \""
-					+ x
-					+ "\" ORDER BY id DESC LIMIT 200;";
-
-			Query query = entityManager.createNativeQuery(queryStr, AssetMinute.class);
-			List<AssetMinute> assetMinutes = query.getResultList();
-			Collections.reverse(assetMinutes);
-
-			response.addParam(GlobalConstant.ITEMS, assetMinutes);
-		} else
+		if (!Arrays.asList(Symbol.SYMBOLS).contains(x)) {
 			System.out.println("Symbol does not match symbols");
-	}
+		}
 
+		String queryStr = "SELECT * FROM tradeanalyzer_main.ta_asset_minute WHERE symbol = \""
+				+ x
+				+ "\" ORDER BY epoch_seconds DESC LIMIT 200;";
+
+		Query query = entityManager.createNativeQuery(queryStr, AssetMinute.class);
+		List<AssetMinute> assetMinutes = new ArrayList<AssetMinute>();
+		for (Object o : (ArrayList.class.cast(query.getResultList()))) {
+			assetMinutes.add(AssetMinute.class.cast(o));
+		}
+		Collections.reverse(assetMinutes);
+
+		response.addParam(GlobalConstant.ITEMS, assetMinutes);
+	}
 
 	public void getAlgSets(Request request, Response response) {
 		String queryStr = "Select DISTINCT x FROM TechnicalIndicator x WHERE x.evaluationPeriod =:evaluationPeriod";
