@@ -47,7 +47,7 @@ public class SMA extends BaseAlg{
 		this.setIdentifier("SMA");
 	}
 
-	public SMA(String symbol){
+	public SMA(final String symbol){
 		super();
 		setSymbol(symbol);
 		this.setActive(true);
@@ -57,7 +57,7 @@ public class SMA extends BaseAlg{
 		this.setIdentifier("SMA");
 	}
 
-	public SMA(String code, Boolean defaultLang, String dir){
+	public SMA(final String code, final Boolean defaultLang, final String dir){
 		this.setActive(true);
 		this.setArchive(false);
 		this.setLocked(false);
@@ -65,21 +65,21 @@ public class SMA extends BaseAlg{
 		this.setIdentifier("SMA");
 	}
 
-	public static BigDecimal calculateSMA(List<BigDecimal> list) {
+	public static BigDecimal calculateSMA(final List<BigDecimal> list) {
         BigDecimal sma = BigDecimal.ZERO;
         for (int i = 0; i < list.size(); i++)
         sma = sma.add(list.get(i));
         return sma.divide( new BigDecimal(list.size()) , MathContext.DECIMAL32);
     }
 
-	public static BigDecimal calculateSD(List<BigDecimal> list) {
+	public static BigDecimal calculateSD(final List<BigDecimal> list) {
         double sum = 0.0, standardDeviation = 0.0;
-        int length = list.size();
+        final int length = list.size();
 
         for (int i = 0; i < length; i++) {
             sum += list.get(i).doubleValue();
         }
-        double mean = sum / length;
+        final double mean = sum / length;
 
         for (int i = 0; i < length; i++) {
             standardDeviation += Math.pow(list.get(i).doubleValue() - mean, 2);

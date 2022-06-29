@@ -35,7 +35,7 @@ public class UBB extends BaseAlg {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private BigDecimal standardDeviations;
+	private BigDecimal standardDeviations = BigDecimal.ZERO;
 
 	public UBB() {
 		super();
@@ -50,11 +50,11 @@ public class UBB extends BaseAlg {
 		return standardDeviations;
 	}
 
-	public void setStandardDeviations(BigDecimal standardDeviations) {
+	public void setStandardDeviations(final BigDecimal standardDeviations) {
 		this.standardDeviations = standardDeviations;
 	}
 
-	public UBB(String symbol) {
+	public UBB(final String symbol) {
 		super();
 		this.setSymbol(symbol);
 		this.setActive(true);
@@ -64,7 +64,7 @@ public class UBB extends BaseAlg {
 		this.setIdentifier("UBB");
 	}
 
-	public UBB(String code, Boolean defaultLang, String dir) {
+	public UBB(final String code, final Boolean defaultLang, final String dir) {
 		this.setActive(true);
 		this.setArchive(false);
 		this.setLocked(false);
@@ -72,14 +72,40 @@ public class UBB extends BaseAlg {
 		this.setIdentifier("UBB");
 	}
 
-	public static BigDecimal calculateUBB(List<BigDecimal> list, BigDecimal standardDeviations) {
-		BigDecimal sma = SMA.calculateSMA(list);
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + ((standardDeviations == null) ? 0 : standardDeviations.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		final UBB other = (UBB) obj;
+		if (standardDeviations == null) {
+			if (other.standardDeviations != null)
+				return false;
+		} else if (!standardDeviations.equals(other.standardDeviations))
+			return false;
+		return true;
+	}
+
+	public static BigDecimal calculateUBB(final List<BigDecimal> list, final BigDecimal standardDeviations) {
+		final BigDecimal sma = SMA.calculateSMA(list);
 
 		return sma.add(
 				SMA.calculateSD(list).multiply(standardDeviations));
 	}
 
-	public static BigDecimal calculateUBB(List<BigDecimal> list, BigDecimal sma, BigDecimal standardDeviations) {
+	public static BigDecimal calculateUBB(final List<BigDecimal> list, final BigDecimal sma,
+			final BigDecimal standardDeviations) {
 		return sma.add(
 				SMA.calculateSD(list).multiply(standardDeviations));
 	}

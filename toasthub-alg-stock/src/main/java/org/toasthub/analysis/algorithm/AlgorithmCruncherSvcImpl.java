@@ -17,17 +17,17 @@ import java.util.stream.Stream;
 import javax.persistence.NoResultException;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.toasthub.analysis.model.EMA;
-import org.toasthub.analysis.model.LBB;
-import org.toasthub.analysis.model.MACD;
-import org.toasthub.analysis.model.SL;
-import org.toasthub.analysis.model.SMA;
-import org.toasthub.analysis.model.UBB;
-import org.toasthub.model.Symbol;
 import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.analysis.model.AssetMinute;
+import org.toasthub.analysis.model.LBB;
+import org.toasthub.analysis.model.SMA;
+import org.toasthub.analysis.model.UBB;
+import org.toasthub.model.Configuration;
+import org.toasthub.model.Symbol;
 import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
@@ -51,6 +51,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 	final AtomicBoolean tradeAnalysisJobRunning = new AtomicBoolean(false);
 
+	final AtomicBoolean databaseIsBackloaded = new AtomicBoolean(false);
+
 	public static final int START_OF_2022 = 1640998860;
 
 	// Constructors
@@ -58,8 +60,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	@Override
-	public void process(Request request, Response response) {
-		String action = (String) request.getParams().get("action");
+	public void process(final Request request, final Response response) {
+		final String action = (String) request.getParams().get("action");
 
 		switch (action) {
 			case "ITEM":
@@ -92,7 +94,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	@Override
-	public void delete(Request request, Response response) {
+	public void delete(final Request request, final Response response) {
 		try {
 			algorithmCruncherDao.delete(request, response);
 			algorithmCruncherDao.itemCount(request, response);
@@ -100,7 +102,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				algorithmCruncherDao.items(request, response);
 			}
 			response.setStatus(Response.SUCCESS);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			response.setStatus(Response.ACTIONFAILED);
 			e.printStackTrace();
 		}
@@ -108,11 +110,11 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	@Override
-	public void item(Request request, Response response) {
+	public void item(final Request request, final Response response) {
 		try {
 			algorithmCruncherDao.item(request, response);
 			response.setStatus(Response.SUCCESS);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			response.setStatus(Response.ACTIONFAILED);
 			e.printStackTrace();
 		}
@@ -120,50 +122,96 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	@Override
-	public void items(Request request, Response response) {
+	public void items(final Request request, final Response response) {
 		try {
 			algorithmCruncherDao.itemCount(request, response);
 			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
 				algorithmCruncherDao.items(request, response);
 			}
 			response.setStatus(Response.SUCCESS);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			response.setStatus(Response.ACTIONFAILED);
 			e.printStackTrace();
 		}
 	}
 
+	@EventListener(ApplicationReadyEvent.class)
+	public void dataBaseBackLoader() {
+		final Request request = new Request();
+		final Response response = new Response();
+
+		request.addParam(GlobalConstant.IDENTIFIER, "CONFIGURATION");
+		try {
+			algorithmCruncherDao.itemCount(request, response);
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
+
+		Configuration config = new Configuration();
+
+		if ((long) response.getParam(GlobalConstant.ITEMCOUNT) == 1) {
+
+			try {
+				algorithmCruncherDao.item(request, response);
+			} catch (final Exception e) {
+				e.printStackTrace();
+			}
+			config = Configuration.class.cast(response.getParam(GlobalConstant.ITEM));
+		}
+
+		if (!config.isBackloaded()) {
+			request.addParam("action", "BACKLOAD");
+			process(request, response);
+		}
+
+		config.setBackloaded(true);
+		request.addParam(GlobalConstant.ITEM, config);
+		try {
+			algorithmCruncherDao.save(request, response);
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
+
+		databaseIsBackloaded.set(true);
+	}
+
 	@Scheduled(cron = "0 * * * * ?")
 	public void dataBaseUpdater() {
 
-		Request request = new Request();
-		request.addParam("action", "LOAD");
-		Response response = new Response();
+		if (!databaseIsBackloaded.get()) {
+			System.out.println("Database is not backloaded yet");
+			return;
+		}
 
 		if (tradeAnalysisJobRunning.get()) {
 			System.out.println("Database is currently running skipping this time");
 			return;
 		}
+
 		new Thread(() -> {
 			tradeAnalysisJobRunning.set(true);
+
+			final Request request = new Request();
+			final Response response = new Response();
+
+			request.addParam("action", "LOAD");
 			process(request, response);
+
 			tradeAnalysisJobRunning.set(false);
 		}).start();
-
 	}
 
 	@Override
-	public void save(Request request, Response response) {
+	public void save(final Request request, final Response response) {
 		// TODO Auto-generated method stub
 
 	}
 
-	@Override
-	public void backloadStockData(Request request, Response response) {
+	public void backloadStockData(final Request request, final Response response) {
 		try {
-			for (String stockName : Symbol.STOCKSYMBOLS) {
+			for (final String stockName : Symbol.STOCKSYMBOLS) {
 				List<StockBar> stockBars;
-				ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York")).truncatedTo(ChronoUnit.DAYS);
+				final ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York")).truncatedTo(ChronoUnit.DAYS);
 				ZonedDateTime first = ZonedDateTime
 						.ofInstant(Instant.ofEpochSecond(START_OF_2022), ZoneId.of("America/New_York"))
 						.truncatedTo(ChronoUnit.DAYS);
@@ -171,7 +219,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				AssetDay stockDay;
 				AssetMinute stockMinute;
 				Set<AssetMinute> stockMinutes;
-				List<AssetDay> stockDays = new ArrayList<AssetDay>();
+				final List<AssetDay> stockDays = new ArrayList<AssetDay>();
 				List<StockBar> stockBar;
 				while (second.isBefore(now)) {
 					try {
@@ -184,7 +232,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 								BarTimePeriod.MINUTE,
 								BarAdjustment.SPLIT,
 								BarFeed.SIP).getBars();
-					} catch (Exception e) {
+					} catch (final Exception e) {
 						System.out.println("Caught!");
 						Thread.sleep(1200 * 60);
 						System.out.println("Resuming!");
@@ -209,7 +257,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 								BarTimePeriod.DAY,
 								BarAdjustment.SPLIT,
 								BarFeed.SIP).getBars();
-					} catch (Exception e) {
+					} catch (final Exception e) {
 						System.out.println("Caught!");
 						Thread.sleep(1200 * 60);
 						System.out.println("Resuming!");
@@ -260,20 +308,19 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				algorithmCruncherDao.saveAll(request, response);
 			}
 
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	@Override
-	public void backloadCryptoData(Request request, Response response) {
+	public void backloadCryptoData(final Request request, final Response response) {
 		try {
-			Collection<Exchange> exchanges = new ArrayList<Exchange>();
+			final Collection<Exchange> exchanges = new ArrayList<Exchange>();
 			exchanges.add(Exchange.COINBASE);
 
-			for (String cryptoName : Symbol.CRYPTOSYMBOLS) {
+			for (final String cryptoName : Symbol.CRYPTOSYMBOLS) {
 				List<CryptoBar> cryptoBars;
-				ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York"));
+				final ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York"));
 				ZonedDateTime first = ZonedDateTime
 						.ofInstant(Instant.ofEpochSecond(START_OF_2022), ZoneId.of("America/New_York"))
 						.truncatedTo(ChronoUnit.DAYS);
@@ -281,7 +328,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				AssetDay cryptoDay;
 				AssetMinute cryptoMinute;
 				Set<AssetMinute> cryptoMinutes;
-				List<AssetDay> cryptoDays = new ArrayList<AssetDay>();
+				final List<AssetDay> cryptoDays = new ArrayList<AssetDay>();
 				List<CryptoBar> cryptoBar;
 				while (second.isBefore(now)) {
 					try {
@@ -292,7 +339,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 								null,
 								1,
 								BarTimePeriod.MINUTE).getBars();
-					} catch (Exception e) {
+					} catch (final Exception e) {
 						System.out.println("Caught!");
 						Thread.sleep(1200 * 60);
 						System.out.println("Resuming!");
@@ -319,7 +366,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 								null,
 								1,
 								BarTimePeriod.DAY).getBars();
-					} catch (Exception e) {
+					} catch (final Exception e) {
 						System.out.println("Caught!");
 						Thread.sleep(1200 * 60);
 						System.out.println("Resuming!");
@@ -367,20 +414,19 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				algorithmCruncherDao.saveAll(request, response);
 			}
 
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	@Override
-	public void loadStockData(Request request, Response response) {
+	public void loadStockData(final Request request, final Response response) {
 		try {
-			for (String stockName : Symbol.STOCKSYMBOLS) {
-				ZonedDateTime today = ZonedDateTime.now(ZoneId.of("America/New_York")).minusSeconds(60 * 20);
+			for (final String stockName : Symbol.STOCKSYMBOLS) {
+				final ZonedDateTime today = ZonedDateTime.now(ZoneId.of("America/New_York")).minusSeconds(60 * 20);
 
 				Set<AssetMinute> preExistingStockMinutes = new LinkedHashSet<AssetMinute>();
 
-				List<StockBar> stockBars = alpacaAPI.stockMarketData().getBars(stockName,
+				final List<StockBar> stockBars = alpacaAPI.stockMarketData().getBars(stockName,
 						today.truncatedTo(ChronoUnit.DAYS),
 						today,
 						null,
@@ -390,7 +436,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						BarAdjustment.SPLIT,
 						BarFeed.SIP).getBars();
 
-				List<StockBar> stockBar = alpacaAPI.stockMarketData().getBars(stockName,
+				final List<StockBar> stockBar = alpacaAPI.stockMarketData().getBars(stockName,
 						today.truncatedTo(ChronoUnit.DAYS),
 						today,
 						null,
@@ -405,7 +451,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				}
 
 				AssetDay stockDay = new AssetDay();
-				Set<AssetMinute> stockMinutes = new LinkedHashSet<AssetMinute>();
+				final Set<AssetMinute> stockMinutes = new LinkedHashSet<AssetMinute>();
 
 				request.addParam(GlobalConstant.EPOCHSECONDS, today.truncatedTo(ChronoUnit.DAYS).toEpochSecond());
 				request.addParam(GlobalConstant.SYMBOL, stockName);
@@ -416,7 +462,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					algorithmCruncherDao.initializedAssetDay(request, response);
 					stockDay = (AssetDay) response.getParam(GlobalConstant.ITEM);
 					preExistingStockMinutes = stockDay.getAssetMinutes();
-				} catch (NoResultException e) {
+				} catch (final NoResultException e) {
 					stockDay.setSymbol(stockName);
 					stockDay.setEpochSeconds(today.truncatedTo(ChronoUnit.DAYS).toEpochSecond());
 				}
@@ -429,7 +475,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				stockDay.setVwap(new BigDecimal(stockBar.get(0).getVwap()));
 
 				for (int i = preExistingStockMinutes.size(); i < stockBars.size(); i++) {
-					AssetMinute stockMinute = new AssetMinute();
+					final AssetMinute stockMinute = new AssetMinute();
 					stockMinute.setAssetDay(stockDay);
 					stockMinute.setSymbol(stockName);
 					stockMinute.setEpochSeconds(stockBars.get(i).getTimestamp().toEpochSecond());
@@ -445,22 +491,21 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				request.addParam(GlobalConstant.ITEM, stockDay);
 				algorithmCruncherDao.save(request, response);
 			}
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	@Override
-	public void loadCryptoData(Request request, Response response) {
+	public void loadCryptoData(final Request request, final Response response) {
 		try {
-			Collection<Exchange> exchanges = new ArrayList<Exchange>();
+			final Collection<Exchange> exchanges = new ArrayList<Exchange>();
 			exchanges.add(Exchange.COINBASE);
 
-			for (String cryptoName : Symbol.CRYPTOSYMBOLS) {
-				ZonedDateTime today = ZonedDateTime.now(ZoneId.of("America/New_York"));
+			for (final String cryptoName : Symbol.CRYPTOSYMBOLS) {
+				final ZonedDateTime today = ZonedDateTime.now(ZoneId.of("America/New_York"));
 				Set<AssetMinute> preExistingCryptoMinutes = new LinkedHashSet<AssetMinute>();
 
-				List<CryptoBar> cryptoBars = alpacaAPI.cryptoMarketData().getBars(cryptoName,
+				final List<CryptoBar> cryptoBars = alpacaAPI.cryptoMarketData().getBars(cryptoName,
 						exchanges,
 						today.truncatedTo(ChronoUnit.DAYS),
 						1500,
@@ -468,7 +513,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						1,
 						BarTimePeriod.MINUTE).getBars();
 
-				List<CryptoBar> cryptoBar = alpacaAPI.cryptoMarketData().getBars(cryptoName,
+				final List<CryptoBar> cryptoBar = alpacaAPI.cryptoMarketData().getBars(cryptoName,
 						exchanges,
 						today.truncatedTo(ChronoUnit.DAYS),
 						1,
@@ -481,7 +526,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				}
 
 				AssetDay cryptoDay = new AssetDay();
-				Set<AssetMinute> cryptoMinutes = new LinkedHashSet<AssetMinute>();
+				final Set<AssetMinute> cryptoMinutes = new LinkedHashSet<AssetMinute>();
 
 				request.addParam(GlobalConstant.EPOCHSECONDS, today.truncatedTo(ChronoUnit.DAYS).toEpochSecond());
 				request.addParam(GlobalConstant.SYMBOL, cryptoName);
@@ -492,7 +537,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					algorithmCruncherDao.initializedAssetDay(request, response);
 					cryptoDay = (AssetDay) response.getParam(GlobalConstant.ITEM);
 					preExistingCryptoMinutes = cryptoDay.getAssetMinutes();
-				} catch (NoResultException e) {
+				} catch (final NoResultException e) {
 					cryptoDay.setSymbol(cryptoName);
 					cryptoDay.setEpochSeconds(today.truncatedTo(ChronoUnit.DAYS).toEpochSecond());
 				}
@@ -503,10 +548,9 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				cryptoDay.setOpen(BigDecimal.valueOf(cryptoBar.get(0).getOpen()));
 				cryptoDay.setVolume(cryptoBar.get(0).getVolume().longValue());
 				cryptoDay.setVwap(BigDecimal.valueOf(cryptoBar.get(0).getVwap()));
-				cryptoDay.setLastUpdated(today.truncatedTo(ChronoUnit.MINUTES).toEpochSecond());
 
 				for (int i = preExistingCryptoMinutes.size(); i < cryptoBars.size(); i++) {
-					AssetMinute cryptoMinute = new AssetMinute();
+					final AssetMinute cryptoMinute = new AssetMinute();
 					cryptoMinute.setAssetDay(cryptoDay);
 					cryptoMinute.setSymbol(cryptoName);
 					cryptoMinute.setEpochSeconds(cryptoBars.get(i).getTimestamp().toEpochSecond());
@@ -523,430 +567,559 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				algorithmCruncherDao.save(request, response);
 
 			}
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			e.printStackTrace();
 		}
 	}
 
-	public void loadAlgs(Request request, Response response) {
-		request.addParam("EVALUATION_PERIOD", "DAY");
+	public void loadAlgs(final Request request, final Response response) {
 		request.addParam(GlobalConstant.IDENTIFIER, "TECHNICAL_INDICATOR");
 
 		try {
 			algorithmCruncherDao.items(request, response);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			e.printStackTrace();
 		}
 
-		Set<SMA> smaSetDay = new HashSet<SMA>();
-		Set<LBB> lbbSetDay = new HashSet<LBB>();
-		Set<UBB> ubbSetDay = new HashSet<UBB>();
+		final Set<SMA> smaSet = new HashSet<SMA>();
+		final Set<LBB> lbbSet = new HashSet<LBB>();
+		final Set<UBB> ubbSet = new HashSet<UBB>();
 
 		if (response.getParam("SMA_SET") != null) {
-			for (Object obj : Set.class.cast(response.getParam("SMA_SET"))) {
-				smaSetDay.add((SMA) obj);
+			for (final Object obj : Set.class.cast(response.getParam("SMA_SET"))) {
+				smaSet.add((SMA) obj);
 			}
 		}
 
 		if (response.getParam("LBB_SET") != null) {
-			for (Object obj : Set.class.cast(response.getParam("LBB_SET"))) {
-				lbbSetDay.add((LBB) obj);
+			for (final Object obj : Set.class.cast(response.getParam("LBB_SET"))) {
+				lbbSet.add((LBB) obj);
 			}
 		}
 
 		if (response.getParam("UBB_SET") != null) {
-			for (Object obj : Set.class.cast(response.getParam("UBB_SET"))) {
-				ubbSetDay.add((UBB) obj);
+			for (final Object obj : Set.class.cast(response.getParam("UBB_SET"))) {
+				ubbSet.add((UBB) obj);
 			}
 		}
 
 		Stream.of(Symbol.SYMBOLS).forEach(symbol -> {
 
+			final List<AssetDay> assetDays = new ArrayList<AssetDay>();
+			final List<AssetMinute> assetMinutes = new ArrayList<AssetMinute>();
+
+			final ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York"));
+
+			request.addParam("STARTING_EPOCH_SECONDS", now.minusDays(1000).toEpochSecond());
+			request.addParam("ENDING_EPOCH_SECONDS", now.plusDays(1000).toEpochSecond());
 			request.addParam(GlobalConstant.IDENTIFIER, "AssetDay");
 			request.addParam(GlobalConstant.SYMBOL, symbol);
+
 			try {
 				algorithmCruncherDao.items(request, response);
-			} catch (Exception e) {
+			} catch (final Exception e) {
 				e.printStackTrace();
 			}
 
-			List<AssetDay> assetDays = new ArrayList<AssetDay>();
-			List<BigDecimal> assetDaysValues = new ArrayList<BigDecimal>();
-
-			for (Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
-				AssetDay assetDay = AssetDay.class.cast(obj);
+			for (final Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
+				final AssetDay assetDay = AssetDay.class.cast(obj);
 				assetDays.add(assetDay);
-				assetDaysValues.add(assetDay.getClose());
 			}
 
-			int i = assetDays.size() - 1;
+			assetDays.sort((a, b) -> (int) (a.getEpochSeconds() - b.getEpochSeconds()));
 
-			if (i < 0)
+			if (assetDays.size() - 1 < 0)
 				return;
 
-			List<SMA> smaListDay = new ArrayList<SMA>();
-			smaSetDay.stream()
-					.filter(sma -> sma.getSymbol().equals(symbol))
-					.forEach(sma -> {
-
-						int smaPeriod = Integer.valueOf(sma.getType().substring(0, sma.getType().indexOf("-")));
-
-						if (i < smaPeriod) {
-							return;
-						}
-
-						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-						request.addParam(GlobalConstant.TYPE, sma.getType());
-						request.addParam(GlobalConstant.SYMBOL, symbol);
-						request.addParam(GlobalConstant.EPOCHSECONDS,
-								assetDays.get(i).getLastUpdated());
-
-						try {
-							algorithmCruncherDao.itemCount(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-
-						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) != 0) {
-							return;
-						}
-
-						sma.setEpochSeconds(assetDays.get(i).getLastUpdated());
-						sma.setSymbol(symbol);
-						sma.setType(sma.getType());
-						sma.setCorrespondingDay(assetDays.get(i).getEpochSeconds());
-
-						sma.setValue(SMA.calculateSMA(assetDaysValues.subList(i - (smaPeriod - 1), i + 1)));
-						smaListDay.add(sma);
-					});
-
-			request.addParam(GlobalConstant.ITEMS, smaListDay);
-			algorithmCruncherDao.saveAll(request, response);
-
-			List<LBB> lbbListDay = new ArrayList<LBB>();
-			lbbSetDay.stream()
-					.filter(lbb -> lbb.getSymbol().equals(symbol))
-					.forEach(lbb -> {
-
-						int lbbPeriod = Integer.valueOf(lbb.getType().substring(0, lbb.getType().indexOf("-")));
-
-						if (i < lbbPeriod) {
-							return;
-						}
-
-						String lbbType = lbb.getType();
-						BigDecimal standardDeviations = lbb.getStandardDeviations();
-
-						request.addParam(GlobalConstant.IDENTIFIER, "LBB");
-						request.addParam(GlobalConstant.TYPE, lbbType);
-						request.addParam("STANDARD_DEVIATIONS", standardDeviations);
-						request.addParam(GlobalConstant.SYMBOL, symbol);
-						request.addParam(GlobalConstant.EPOCHSECONDS,
-								assetDays.get(i).getLastUpdated());
-
-						try {
-							algorithmCruncherDao.itemCount(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-
-						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
-							return;
-						}
-
-						lbb.setEpochSeconds(assetDays.get(i).getLastUpdated());
-						lbb.setSymbol(symbol);
-						lbb.setType(lbbType);
-						lbb.setStandardDeviations(standardDeviations);
-						lbb.setCorrespondingDay(assetDays.get(i).getEpochSeconds());
-
-						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-						request.addParam(GlobalConstant.SYMBOL, symbol);
-						request.addParam(GlobalConstant.TYPE, lbbType);
-						request.addParam(GlobalConstant.EPOCHSECONDS, lbb.getEpochSeconds());
-
-						try {
-							algorithmCruncherDao.item(request, response);
-							lbb.setValue(
-									LBB.calculateLBB(
-											assetDaysValues.subList(i - (lbbPeriod - 1), i + 1),
-											((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
-											standardDeviations));
-						} catch (NoResultException e) {
-							lbb.setValue(
-									LBB.calculateLBB(
-											assetDaysValues.subList(i - (lbbPeriod - 1), i + 1),
-											standardDeviations));
-						}
-						lbbListDay.add(lbb);
-					});
-
-			request.addParam(GlobalConstant.ITEMS, lbbListDay);
-			algorithmCruncherDao.saveAll(request, response);
-
-			List<UBB> ubbListDay = new ArrayList<UBB>();
-			ubbSetDay.stream()
-					.filter(ubb -> ubb.getSymbol().equals(symbol))
-					.forEach(ubb -> {
-
-						String ubbType = ubb.getType();
-						int ubbPeriod = Integer.valueOf(ubbType.substring(0, ubbType.indexOf("-")));
-
-						if (i < ubbPeriod) {
-							return;
-						}
-
-						BigDecimal standardDeviations = ubb.getStandardDeviations();
-
-						request.addParam(GlobalConstant.IDENTIFIER, "UBB");
-						request.addParam(GlobalConstant.TYPE, ubbType);
-						request.addParam("STANDARD_DEVIATIONS", standardDeviations);
-						request.addParam(GlobalConstant.SYMBOL, symbol);
-						request.addParam(GlobalConstant.EPOCHSECONDS,
-								assetDays.get(i).getLastUpdated());
-
-						try {
-							algorithmCruncherDao.itemCount(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-
-						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
-							return;
-						}
-
-						ubb.setEpochSeconds(assetDays.get(i).getLastUpdated());
-						ubb.setSymbol(symbol);
-						ubb.setType(ubbType);
-						ubb.setStandardDeviations(standardDeviations);
-						ubb.setCorrespondingDay(assetDays.get(i).getEpochSeconds());
-
-						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-						request.addParam(GlobalConstant.SYMBOL, symbol);
-						request.addParam(GlobalConstant.TYPE, ubbType);
-						request.addParam(GlobalConstant.EPOCHSECONDS, ubb.getEpochSeconds());
-
-						try {
-							algorithmCruncherDao.item(request, response);
-							ubb.setValue(
-									UBB.calculateUBB(
-											assetDaysValues.subList(i - (ubbPeriod - 1), i + 1),
-											((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
-											standardDeviations));
-						} catch (NoResultException e) {
-							ubb.setValue(
-									UBB.calculateUBB(
-											assetDaysValues.subList(i - (ubbPeriod - 1), i + 1),
-											standardDeviations));
-						}
-						ubbListDay.add(ubb);
-					});
-
-			request.addParam(GlobalConstant.ITEMS, ubbListDay);
-			algorithmCruncherDao.saveAll(request, response);
-		});
-
-		request.addParam("EVALUATION_PERIOD", "MINUTE");
-		request.addParam(GlobalConstant.IDENTIFIER, "TECHNICAL_INDICATOR");
-
-		try {
-			algorithmCruncherDao.items(request, response);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		Set<SMA> smaSetMinute = new HashSet<SMA>();
-		Set<LBB> lbbSetMinute = new HashSet<LBB>();
-		Set<UBB> ubbSetMinute = new HashSet<UBB>();
-
-		if (response.getParam("SMA_SET") != null) {
-			for (Object obj : Set.class.cast(response.getParam("SMA_SET"))) {
-				smaSetMinute.add((SMA) obj);
-			}
-		}
-
-		if (response.getParam("LBB_SET") != null) {
-			for (Object obj : Set.class.cast(response.getParam("LBB_SET"))) {
-				lbbSetMinute.add((LBB) obj);
-			}
-		}
-
-		if (response.getParam("UBB_SET") != null) {
-			for (Object obj : Set.class.cast(response.getParam("UBB_SET"))) {
-				ubbSetMinute.add((UBB) obj);
-			}
-		}
-
-		Stream.of(Symbol.SYMBOLS).forEach(symbol -> {
-
+			request.addParam("STARTING_EPOCH_SECONDS", now.minusMinutes(1000).toEpochSecond());
+			request.addParam("ENDING_EPOCH_SECONDS", now.plusMinutes(1000).toEpochSecond());
+			request.addParam(GlobalConstant.IDENTIFIER, "AssetMinute");
 			request.addParam(GlobalConstant.SYMBOL, symbol);
-			algorithmCruncherDao.getRecentAssetMinutes(request, response);
 
-			List<AssetMinute> assetMinutes = new ArrayList<AssetMinute>();
-			List<BigDecimal> assetMinuteValues = new ArrayList<BigDecimal>();
-
-			for (Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
-				AssetMinute assetMinute = AssetMinute.class.cast(obj);
-				assetMinutes.add(assetMinute);
-				assetMinuteValues.add(assetMinute.getValue());
+			try {
+				algorithmCruncherDao.items(request, response);
+			} catch (final Exception e) {
+				e.printStackTrace();
 			}
 
-			int i = assetMinutes.size() - 1;
+			for (final Object obj : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
+				final AssetMinute assetMinute = AssetMinute.class.cast(obj);
+				assetMinutes.add(assetMinute);
+			}
 
-			if (i < 0)
+			assetMinutes.sort((a, b) -> (int) (a.getEpochSeconds() - b.getEpochSeconds()));
+
+			if (assetMinutes.size() - 1 < 0)
 				return;
 
-			List<SMA> smaListMinute = new ArrayList<SMA>();
-			smaSetMinute.stream()
+			final List<SMA> smaList = new ArrayList<SMA>();
+			smaSet.stream()
 					.filter(sma -> sma.getSymbol().equals(symbol))
 					.forEach(sma -> {
 
-						int smaPeriod = Integer.valueOf(sma.getType().substring(0, sma.getType().indexOf("-")));
+						final String evaluationPeriod = sma.getType().substring(sma.getType().indexOf("-") + 1);
 
-						if (i < smaPeriod) {
-							return;
+						request.addParam(GlobalConstant.ITEM, sma);
+						request.addParam("SUCCESSFUL", false);
+
+						switch (evaluationPeriod) {
+							case "day":
+								request.addParam("RECENT_ASSET_MINUTE", assetMinutes.get(assetMinutes.size() - 1));
+								request.addParam(GlobalConstant.ITEMS, assetDays);
+								configureSMADay(request, response);
+								break;
+							case "minute":
+								request.addParam(GlobalConstant.ITEMS, assetMinutes);
+								configureSMAMinute(request, response);
+								break;
+							default:
+								System.out.println("Invalid evaluationPeriod");
+								return;
 						}
 
-						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-						request.addParam(GlobalConstant.TYPE, sma.getType());
-						request.addParam(GlobalConstant.SYMBOL, symbol);
-						request.addParam(GlobalConstant.EPOCHSECONDS,
-								assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
-						try {
-							algorithmCruncherDao.itemCount(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
+						if ((boolean) request.getParam("SUCCESSFUL")) {
+							smaList.add(sma);
 						}
 
-						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
-							return;
-						}
-
-						sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-						sma.setSymbol(symbol);
-						sma.setType(sma.getType());
-
-						sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - (smaPeriod - 1), i + 1)));
-						smaListMinute.add(sma);
 					});
 
-			request.addParam(GlobalConstant.ITEMS, smaListMinute);
+			request.addParam(GlobalConstant.ITEMS, smaList);
 			algorithmCruncherDao.saveAll(request, response);
 
-			List<LBB> lbbListMinute = new ArrayList<LBB>();
-			lbbSetMinute.stream()
+			final List<LBB> lbbList = new ArrayList<LBB>();
+			lbbSet.stream()
 					.filter(lbb -> lbb.getSymbol().equals(symbol))
 					.forEach(lbb -> {
 
-						String lbbType = lbb.getType();
-						BigDecimal standardDeviations = lbb.getStandardDeviations();
-						int lbbPeriod = Integer.valueOf(lbb.getType().substring(0, lbb.getType().indexOf("-")));
+						final String evaluationPeriod = lbb.getType().substring(lbb.getType().indexOf("-") + 1);
 
-						if (i < lbbPeriod) {
-							return;
+						request.addParam(GlobalConstant.ITEM, lbb);
+						request.addParam("SUCCESSFUL", false);
+
+						switch (evaluationPeriod) {
+							case "day":
+								request.addParam("RECENT_ASSET_MINUTE", assetMinutes.get(assetMinutes.size() - 1));
+								request.addParam(GlobalConstant.ITEMS, assetDays);
+								configureLBBDay(request, response);
+								break;
+							case "minute":
+								request.addParam(GlobalConstant.ITEMS, assetMinutes);
+								configureLBBMinute(request, response);
+								break;
+							default:
+								System.out.println("Invalid evaluationPeriod");
+								return;
 						}
 
-						request.addParam(GlobalConstant.IDENTIFIER, "LBB");
-						request.addParam(GlobalConstant.TYPE, lbbType);
-						request.addParam("STANDARD_DEVIATIONS", standardDeviations);
-						request.addParam(GlobalConstant.SYMBOL, symbol);
-						request.addParam(GlobalConstant.EPOCHSECONDS,
-								assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
-						try {
-							algorithmCruncherDao.itemCount(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
+						if ((boolean) request.getParam("SUCCESSFUL")) {
+							lbbList.add(lbb);
 						}
-
-						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
-							return;
-						}
-
-						lbb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-						lbb.setSymbol(symbol);
-						lbb.setType(lbbType);
-						lbb.setStandardDeviations(standardDeviations);
-
-						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-						request.addParam(GlobalConstant.SYMBOL, symbol);
-						request.addParam(GlobalConstant.TYPE, lbbType);
-						request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
-
-						try {
-							algorithmCruncherDao.item(request, response);
-							lbb.setValue(
-									LBB.calculateLBB(
-											assetMinuteValues.subList(i - (lbbPeriod - 1), i + 1),
-											((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
-											standardDeviations));
-						} catch (NoResultException e) {
-							lbb.setValue(
-									LBB.calculateLBB(
-											assetMinuteValues.subList(i - (lbbPeriod - 1), i + 1),
-											standardDeviations));
-						}
-						lbbListMinute.add(lbb);
 					});
 
-			request.addParam(GlobalConstant.ITEMS, lbbListMinute);
+			request.addParam(GlobalConstant.ITEMS, lbbList);
 			algorithmCruncherDao.saveAll(request, response);
 
-			List<UBB> ubbListMinute = new ArrayList<UBB>();
-			ubbSetMinute.stream()
+			final List<UBB> ubbList = new ArrayList<UBB>();
+			ubbSet.stream()
 					.filter(ubb -> ubb.getSymbol().equals(symbol))
 					.forEach(ubb -> {
 
-						String ubbType = ubb.getType();
-						BigDecimal standardDeviations = ubb.getStandardDeviations();
-						int ubbPeriod = Integer.valueOf(ubb.getType().substring(0, ubb.getType().indexOf("-")));
+						final String evaluationPeriod = ubb.getType().substring(ubb.getType().indexOf("-") + 1);
 
-						if (i < ubbPeriod) {
-							return;
+						request.addParam(GlobalConstant.ITEM, ubb);
+						request.addParam("SUCCESSFUL", false);
+
+						switch (evaluationPeriod) {
+							case "day":
+								request.addParam("RECENT_ASSET_MINUTE", assetMinutes.get(assetMinutes.size() - 1));
+								request.addParam(GlobalConstant.ITEMS, assetDays);
+								configureUBBDay(request, response);
+								break;
+							case "minute":
+								request.addParam(GlobalConstant.ITEMS, assetMinutes);
+								configureUBBMinute(request, response);
+								break;
+							default:
+								System.out.println("Invalid evaluationPeriod");
+								return;
 						}
 
-						request.addParam(GlobalConstant.IDENTIFIER, "UBB");
-						request.addParam(GlobalConstant.TYPE, ubbType);
-						request.addParam("STANDARD_DEVIATIONS", standardDeviations);
-						request.addParam(GlobalConstant.SYMBOL, symbol);
-						request.addParam(GlobalConstant.EPOCHSECONDS,
-								assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
-						try {
-							algorithmCruncherDao.itemCount(request, response);
-						} catch (Exception e) {
-							e.printStackTrace();
+						if ((boolean) request.getParam("SUCCESSFUL")) {
+							ubbList.add(ubb);
 						}
-
-						if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
-							return;
-						}
-						ubb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
-						ubb.setSymbol(symbol);
-						ubb.setType(ubbType);
-						ubb.setStandardDeviations(standardDeviations);
-
-						request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-						request.addParam(GlobalConstant.SYMBOL, symbol);
-						request.addParam(GlobalConstant.TYPE, ubbType);
-						request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
-
-						try {
-							algorithmCruncherDao.item(request, response);
-							ubb.setValue(
-									UBB.calculateUBB(
-											assetMinuteValues.subList(i - (ubbPeriod - 1), i + 1),
-											((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
-											standardDeviations));
-						} catch (NoResultException e) {
-							ubb.setValue(
-									UBB.calculateUBB(
-											assetMinuteValues.subList(i - (ubbPeriod - 1), i + 1),
-											standardDeviations));
-						}
-						ubbListMinute.add(ubb);
 					});
 
-			request.addParam(GlobalConstant.ITEMS, ubbListMinute);
+			request.addParam(GlobalConstant.ITEMS, ubbList);
 			algorithmCruncherDao.saveAll(request, response);
 		});
 	}
+
+	public void backloadAlg(final Request request, final Response response) {
+		final int daysToBackload = 100;
+
+	}
+
+	public void configureSMAMinute(final Request request, final Response response) {
+		final List<AssetMinute> assetMinutes = new ArrayList<AssetMinute>();
+		final List<BigDecimal> assetMinuteValues = new ArrayList<BigDecimal>();
+
+		final SMA sma = (SMA) request.getParam(GlobalConstant.ITEM);
+		final String symbol = sma.getSymbol();
+		final String smaType = sma.getType();
+
+		for (final Object obj : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))) {
+			final AssetMinute assetMinute = AssetMinute.class.cast(obj);
+			assetMinutes.add(assetMinute);
+			assetMinuteValues.add(assetMinute.getValue());
+		}
+
+		final int i = assetMinutes.size() - 1;
+		final int smaPeriod = Integer.valueOf(smaType.substring(0, smaType.indexOf("-")));
+
+		if (i < smaPeriod) {
+			return;
+		}
+
+		request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+		request.addParam(GlobalConstant.TYPE, smaType);
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+		request.addParam(GlobalConstant.EPOCHSECONDS,
+				assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
+		try {
+			algorithmCruncherDao.itemCount(request, response);
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
+
+		if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
+			return;
+		}
+
+		sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+		sma.setSymbol(symbol);
+		sma.setType(smaType);
+
+		sma.setValue(SMA.calculateSMA(assetMinuteValues.subList(i - (smaPeriod - 1), i + 1)));
+
+		request.addParam("SUCCESSFUL", true);
+	}
+
+	public void configureLBBMinute(final Request request, final Response response) {
+		final List<AssetMinute> assetMinutes = new ArrayList<AssetMinute>();
+		final List<BigDecimal> assetMinuteValues = new ArrayList<BigDecimal>();
+
+		final LBB lbb = (LBB) request.getParam(GlobalConstant.ITEM);
+		final String symbol = lbb.getSymbol();
+		final String lbbType = lbb.getType();
+		final BigDecimal standardDeviations = lbb.getStandardDeviations();
+
+		for (final Object obj : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))) {
+			final AssetMinute assetMinute = AssetMinute.class.cast(obj);
+			assetMinutes.add(assetMinute);
+			assetMinuteValues.add(assetMinute.getValue());
+		}
+
+		final int i = assetMinutes.size() - 1;
+		final int lbbPeriod = Integer.valueOf(lbbType.substring(0, lbbType.indexOf("-")));
+
+		if (i < lbbPeriod) {
+			return;
+		}
+
+		request.addParam(GlobalConstant.IDENTIFIER, "LBB");
+		request.addParam(GlobalConstant.TYPE, lbbType);
+		request.addParam("STANDARD_DEVIATIONS", standardDeviations);
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+		request.addParam(GlobalConstant.EPOCHSECONDS,
+				assetMinutes.get(i).getEpochSeconds());
+		try {
+			algorithmCruncherDao.itemCount(request, response);
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
+
+		if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
+			return;
+		}
+
+		lbb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+		lbb.setSymbol(symbol);
+		lbb.setType(lbbType);
+		lbb.setStandardDeviations(standardDeviations);
+
+		request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+		request.addParam(GlobalConstant.TYPE, lbbType);
+		request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+
+		try {
+			algorithmCruncherDao.item(request, response);
+			lbb.setValue(
+					LBB.calculateLBB(
+							assetMinuteValues.subList(i - (lbbPeriod - 1), i + 1),
+							((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
+							standardDeviations));
+		} catch (final NoResultException e) {
+			lbb.setValue(
+					LBB.calculateLBB(
+							assetMinuteValues.subList(i - (lbbPeriod - 1), i + 1),
+							standardDeviations));
+		}
+		request.addParam("SUCCESSFUL", true);
+	}
+
+	public void configureUBBMinute(final Request request, final Response response) {
+
+		final List<AssetMinute> assetMinutes = new ArrayList<AssetMinute>();
+		final List<BigDecimal> assetMinuteValues = new ArrayList<BigDecimal>();
+
+		final UBB ubb = (UBB) request.getParam(GlobalConstant.ITEM);
+		final String symbol = ubb.getSymbol();
+		final String ubbType = ubb.getType();
+		final BigDecimal standardDeviations = ubb.getStandardDeviations();
+
+		for (final Object obj : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))) {
+			final AssetMinute assetMinute = AssetMinute.class.cast(obj);
+			assetMinutes.add(assetMinute);
+			assetMinuteValues.add(assetMinute.getValue());
+		}
+
+		final int i = assetMinutes.size() - 1;
+		final int ubbPeriod = Integer.valueOf(ubbType.substring(0, ubbType.indexOf("-")));
+
+		if (i < ubbPeriod) {
+			return;
+		}
+
+		request.addParam(GlobalConstant.IDENTIFIER, "UBB");
+		request.addParam(GlobalConstant.TYPE, ubbType);
+		request.addParam("STANDARD_DEVIATIONS", standardDeviations);
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+		request.addParam(GlobalConstant.EPOCHSECONDS,
+				assetMinutes.get(i).getEpochSeconds());
+		try {
+			algorithmCruncherDao.itemCount(request, response);
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
+
+		if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
+			return;
+		}
+		ubb.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
+		ubb.setSymbol(symbol);
+		ubb.setType(ubbType);
+		ubb.setStandardDeviations(standardDeviations);
+
+		request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+		request.addParam(GlobalConstant.TYPE, ubbType);
+		request.addParam(GlobalConstant.EPOCHSECONDS, assetMinutes.get(i).getEpochSeconds());
+
+		try {
+			algorithmCruncherDao.item(request, response);
+			ubb.setValue(
+					UBB.calculateUBB(
+							assetMinuteValues.subList(i - (ubbPeriod - 1), i + 1),
+							((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
+							standardDeviations));
+		} catch (final NoResultException e) {
+			ubb.setValue(
+					UBB.calculateUBB(
+							assetMinuteValues.subList(i - (ubbPeriod - 1), i + 1),
+							standardDeviations));
+		}
+		request.addParam("SUCCESSFUL", true);
+	}
+
+	public void configureSMADay(final Request request, final Response response) {
+		final List<AssetDay> assetDays = new ArrayList<AssetDay>();
+		final List<BigDecimal> assetDayValues = new ArrayList<BigDecimal>();
+		final AssetMinute assetMinute = (AssetMinute) request.getParam("RECENT_ASSET_MINUTE");
+
+		final SMA sma = (SMA) request.getParam(GlobalConstant.ITEM);
+		final String symbol = sma.getSymbol();
+		final String smaType = sma.getType();
+
+		for (final Object obj : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))) {
+			final AssetDay assetDay = AssetDay.class.cast(obj);
+			assetDays.add(assetDay);
+			assetDayValues.add(assetDay.getClose());
+		}
+
+		assetDayValues.set(assetDayValues.size() - 1, assetMinute.getValue());
+
+		final int i = assetDays.size() - 1;
+		final int smaPeriod = Integer.valueOf(smaType.substring(0, smaType.indexOf("-")));
+
+		if (i < smaPeriod) {
+			return;
+		}
+
+		request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+		request.addParam(GlobalConstant.TYPE, smaType);
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+		request.addParam(GlobalConstant.EPOCHSECONDS,
+				assetMinute.getEpochSeconds());
+
+		try {
+			algorithmCruncherDao.itemCount(request, response);
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
+
+		if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) != 0) {
+			return;
+		}
+
+		sma.setEpochSeconds(assetMinute.getEpochSeconds());
+		sma.setSymbol(symbol);
+		sma.setType(smaType);
+		sma.setCorrespondingDay(assetDays.get(i).getEpochSeconds());
+
+		sma.setValue(SMA.calculateSMA(assetDayValues.subList(i - (smaPeriod - 1), i + 1)));
+
+		request.addParam("SUCCESSFUL", true);
+	}
+
+	public void configureLBBDay(final Request request, final Response response) {
+		final List<AssetDay> assetDays = new ArrayList<AssetDay>();
+		final List<BigDecimal> assetDayValues = new ArrayList<BigDecimal>();
+		final AssetMinute assetMinute = (AssetMinute) request.getParam("RECENT_ASSET_MINUTE");
+
+		final LBB lbb = (LBB) request.getParam(GlobalConstant.ITEM);
+		final String symbol = lbb.getSymbol();
+		final String lbbType = lbb.getType();
+		final BigDecimal standardDeviations = lbb.getStandardDeviations();
+
+		for (final Object obj : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))) {
+			final AssetDay assetDay = AssetDay.class.cast(obj);
+			assetDays.add(assetDay);
+			assetDayValues.add(assetDay.getClose());
+		}
+
+		assetDayValues.set(assetDayValues.size() - 1, assetMinute.getValue());
+
+		final int i = assetDays.size() - 1;
+		final int lbbPeriod = Integer.valueOf(lbbType.substring(0, lbbType.indexOf("-")));
+
+		if (i < lbbPeriod) {
+			return;
+		}
+
+		request.addParam(GlobalConstant.IDENTIFIER, "LBB");
+		request.addParam(GlobalConstant.TYPE, lbbType);
+		request.addParam("STANDARD_DEVIATIONS", standardDeviations);
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+		request.addParam(GlobalConstant.EPOCHSECONDS,
+				assetMinute.getEpochSeconds());
+
+		try {
+			algorithmCruncherDao.itemCount(request, response);
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
+
+		if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
+			return;
+		}
+
+		lbb.setEpochSeconds(assetMinute.getEpochSeconds());
+		lbb.setSymbol(symbol);
+		lbb.setType(lbbType);
+		lbb.setStandardDeviations(standardDeviations);
+		lbb.setCorrespondingDay(assetDays.get(i).getEpochSeconds());
+
+		request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+		request.addParam(GlobalConstant.TYPE, lbbType);
+		request.addParam(GlobalConstant.EPOCHSECONDS, lbb.getEpochSeconds());
+
+		try {
+			algorithmCruncherDao.item(request, response);
+			lbb.setValue(
+					LBB.calculateLBB(
+							assetDayValues.subList(i - (lbbPeriod - 1), i + 1),
+							((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
+							standardDeviations));
+		} catch (final NoResultException e) {
+			lbb.setValue(
+					LBB.calculateLBB(
+							assetDayValues.subList(i - (lbbPeriod - 1), i + 1),
+							standardDeviations));
+		}
+
+		request.addParam("SUCCESSFUL", true);
+	}
+
+	public void configureUBBDay(final Request request, final Response response) {
+		final List<AssetDay> assetDays = new ArrayList<AssetDay>();
+		final List<BigDecimal> assetDayValues = new ArrayList<BigDecimal>();
+		final AssetMinute assetMinute = (AssetMinute) request.getParam("RECENT_ASSET_MINUTE");
+
+		final UBB ubb = (UBB) request.getParam(GlobalConstant.ITEM);
+		final String symbol = ubb.getSymbol();
+		final String ubbType = ubb.getType();
+		final BigDecimal standardDeviations = ubb.getStandardDeviations();
+
+		for (final Object obj : ArrayList.class.cast(request.getParam(GlobalConstant.ITEMS))) {
+			final AssetDay assetDay = AssetDay.class.cast(obj);
+			assetDays.add(assetDay);
+			assetDayValues.add(assetDay.getClose());
+		}
+
+		assetDayValues.set(assetDayValues.size() - 1, assetMinute.getValue());
+
+		final int i = assetDays.size() - 1;
+		final int ubbPeriod = Integer.valueOf(ubbType.substring(0, ubbType.indexOf("-")));
+
+		if (i < ubbPeriod) {
+			return;
+		}
+
+		request.addParam(GlobalConstant.IDENTIFIER, "UBB");
+		request.addParam(GlobalConstant.TYPE, ubbType);
+		request.addParam("STANDARD_DEVIATIONS", standardDeviations);
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+		request.addParam(GlobalConstant.EPOCHSECONDS,
+				assetMinute.getEpochSeconds());
+
+		try {
+			algorithmCruncherDao.itemCount(request, response);
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
+
+		if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
+			return;
+		}
+
+		ubb.setEpochSeconds(assetMinute.getEpochSeconds());
+		ubb.setSymbol(symbol);
+		ubb.setType(ubbType);
+		ubb.setStandardDeviations(standardDeviations);
+		ubb.setCorrespondingDay(assetDays.get(i).getEpochSeconds());
+
+		request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+		request.addParam(GlobalConstant.TYPE, ubbType);
+		request.addParam(GlobalConstant.EPOCHSECONDS, ubb.getEpochSeconds());
+
+		try {
+			algorithmCruncherDao.item(request, response);
+			ubb.setValue(
+					UBB.calculateUBB(
+							assetDayValues.subList(i - (ubbPeriod - 1), i + 1),
+							((SMA) response.getParam(GlobalConstant.ITEM)).getValue(),
+							standardDeviations));
+		} catch (final NoResultException e) {
+			ubb.setValue(
+					UBB.calculateUBB(
+							assetDayValues.subList(i - (ubbPeriod - 1), i + 1),
+							standardDeviations));
+		}
+
+		request.addParam("SUCCESSFUL", true);
+	}
+
 }

@@ -35,7 +35,7 @@ public class LBB extends BaseAlg {
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private BigDecimal standardDeviations;
+	private BigDecimal standardDeviations = BigDecimal.ZERO;
 
 	public LBB() {
 		super();
@@ -50,11 +50,11 @@ public class LBB extends BaseAlg {
 		return standardDeviations;
 	}
 
-	public void setStandardDeviations(BigDecimal standardDeviations) {
+	public void setStandardDeviations(final BigDecimal standardDeviations) {
 		this.standardDeviations = standardDeviations;
 	}
 
-	public LBB(String symbol) {
+	public LBB(final String symbol) {
 		super();
 		this.setSymbol(symbol);
 		this.setActive(true);
@@ -64,7 +64,7 @@ public class LBB extends BaseAlg {
 		this.setIdentifier("LBB");
 	}
 
-	public LBB(String code, Boolean defaultLang, String dir) {
+	public LBB(final String code, final Boolean defaultLang, final String dir) {
 		this.setActive(true);
 		this.setArchive(false);
 		this.setLocked(false);
@@ -72,14 +72,39 @@ public class LBB extends BaseAlg {
 		this.setIdentifier("LBB");
 	}
 
-	public static BigDecimal calculateLBB(List<BigDecimal> list, BigDecimal standardDeviations) {
-		BigDecimal sma = SMA.calculateSMA(list);
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + ((standardDeviations == null) ? 0 : standardDeviations.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(final Object obj) {
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		final LBB other = (LBB) obj;
+		if (standardDeviations == null) {
+			if (other.standardDeviations != null)
+				return false;
+		} else if (!standardDeviations.equals(other.standardDeviations))
+			return false;
+		return true;
+	}
+
+	public static BigDecimal calculateLBB(final List<BigDecimal> list, final BigDecimal standardDeviations) {
+		final BigDecimal sma = SMA.calculateSMA(list);
 
 		return sma.subtract(
 				SMA.calculateSD(list).multiply(standardDeviations));
 	}
 
-	public static BigDecimal calculateLBB(List<BigDecimal> list, BigDecimal sma, BigDecimal standardDeviations) {
+	public static BigDecimal calculateLBB(final List<BigDecimal> list, final BigDecimal sma, final BigDecimal standardDeviations) {
 		return sma.subtract(
 				SMA.calculateSD(list).multiply(standardDeviations));
 	}
