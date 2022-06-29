@@ -28,10 +28,12 @@ import org.toasthub.analysis.model.SMA;
 import org.toasthub.analysis.model.UBB;
 import org.toasthub.model.Configuration;
 import org.toasthub.model.Symbol;
+import org.toasthub.model.TechnicalIndicator;
 import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
 
+import net.bytebuddy.agent.builder.AgentBuilder.CircularityLock.Global;
 import net.jacobpeterson.alpaca.AlpacaAPI;
 import net.jacobpeterson.alpaca.model.endpoint.marketdata.common.historical.bar.enums.BarTimePeriod;
 import net.jacobpeterson.alpaca.model.endpoint.marketdata.crypto.common.enums.Exchange;
@@ -86,6 +88,9 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				loadStockData(request, response);
 				loadCryptoData(request, response);
 				loadAlgs(request, response);
+				break;
+			case "BACKLOAD_ALG":
+				backloadAlg(request, response);
 				break;
 			default:
 				break;
@@ -755,8 +760,34 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	public void backloadAlg(final Request request, final Response response) {
-		final int daysToBackload = 100;
+		switch ((String) request.getParam("TECHNICAL_INDICATOR_TYPE")) {
+			case TechnicalIndicator.GOLDENCROSS:
+				backloadSMA(request, response);
+				break;
+			case TechnicalIndicator.LOWERBOLLINGERBAND:
+				break;
+			case TechnicalIndicator.UPPERBOLLINGERBAND:
+				break;
+			default:
+				System.out.println("INVALID TECHINCAL INDICATOR TYPE AT ALGORITHMCRUCNHERSVC BACKLOADALG");
+				break;
+		}
+	}
 
+	public void backloadSMA(Request request, Response response) {
+		String technicalIndicatorType = (String) request.getParam("TECHNICAL_INDICATOR_KEY");
+		String shortSMAType = technicalIndicatorType.substring(0, technicalIndicatorType.indexOf(":"));
+		String longSMAType = technicalIndicatorType.substring(technicalIndicatorType.indexOf(":") + 1);
+		String symbol = (String) request.getParam("SYMBOL");
+
+		request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+		request.addParam(GlobalConstant.TYPE, shortSMAType);
+		request.addParam(GlobalConstant.SYMBOL, symbol);
+
+		algorithmCruncherDao.getEarliestAlgTime(request, response);
+		long end = (long) response.getParam(GlobalConstant.ITEM);
+
+		
 	}
 
 	public void configureSMAMinute(final Request request, final Response response) {

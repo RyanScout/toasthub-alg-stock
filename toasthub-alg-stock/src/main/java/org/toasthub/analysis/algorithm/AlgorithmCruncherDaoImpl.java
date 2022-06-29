@@ -382,4 +382,45 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 		final Query query = entityManager.createQuery(queryStr);
 		response.addParam(GlobalConstant.ITEM, query.getSingleResult());
 	}
+
+	@Override
+	public void getEarliestAlgTime(Request request, Response response) {
+		String x = "";
+		switch ((String) request.getParam(GlobalConstant.IDENTIFIER)) {
+			case "SMA":
+				x = "SMA";
+				break;
+			case "EMA":
+				x = "EMA";
+				break;
+			case "LBB":
+				x = "LBB";
+				break;
+			case "UBB":
+				x = "UBB";
+				break;
+			case "MACD":
+				x = "MACD";
+				break;
+			case "SL":
+				x = "SL";
+				break;
+			default:
+				return;
+		}
+
+		if (!Arrays.asList(Symbol.SYMBOLS).contains((String) request.getParam(GlobalConstant.SYMBOL))) {
+			System.out.println("request param symbol does not contain valid symbol at algorithm cruncher dao item");
+			return;
+		}
+
+		String queryStr = "SELECT MIN(x.epochSeconds) FROM " + x + " x WHERE x.symbol = : symbol AND x.type=:type";
+
+		final Query query = entityManager.createQuery(queryStr);
+		query.setParameter("type", request.getParam(GlobalConstant.TYPE));
+		query.setParameter("symbol", request.getParam(GlobalConstant.SYMBOL));
+
+		response.addParam(GlobalConstant.ITEM, query.getSingleResult());
+
+	}
 }
