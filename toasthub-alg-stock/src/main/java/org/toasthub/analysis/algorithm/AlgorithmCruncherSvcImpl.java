@@ -21,6 +21,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StopWatch;
 import org.toasthub.analysis.model.AssetDay;
 import org.toasthub.analysis.model.AssetMinute;
 import org.toasthub.analysis.model.LBB;
@@ -33,7 +34,6 @@ import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
 
-import net.bytebuddy.agent.builder.AgentBuilder.CircularityLock.Global;
 import net.jacobpeterson.alpaca.AlpacaAPI;
 import net.jacobpeterson.alpaca.model.endpoint.marketdata.common.historical.bar.enums.BarTimePeriod;
 import net.jacobpeterson.alpaca.model.endpoint.marketdata.crypto.common.enums.Exchange;
@@ -56,10 +56,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	final AtomicBoolean databaseIsBackloaded = new AtomicBoolean(false);
 
 	public static final int START_OF_2022 = 1640998860;
-
-	// Constructors
-	public AlgorithmCruncherSvcImpl() {
-	}
 
 	@Override
 	public void process(final Request request, final Response response) {
@@ -579,6 +575,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 	public void loadAlgs(final Request request, final Response response) {
 		request.addParam(GlobalConstant.IDENTIFIER, "TECHNICAL_INDICATOR");
+		request.addParam("CHECK_FOR_DUPLICATES", true);
 
 		try {
 			algorithmCruncherDao.items(request, response);
@@ -774,20 +771,112 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		}
 	}
 
-	public void backloadSMA(Request request, Response response) {
-		String technicalIndicatorType = (String) request.getParam("TECHNICAL_INDICATOR_KEY");
-		String shortSMAType = technicalIndicatorType.substring(0, technicalIndicatorType.indexOf(":"));
-		String longSMAType = technicalIndicatorType.substring(technicalIndicatorType.indexOf(":") + 1);
-		String symbol = (String) request.getParam("SYMBOL");
+	public void backloadSMA(final Request request, final Response response) {
+		final Set<SMA> smaSet = new HashSet<SMA>();
 
-		request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-		request.addParam(GlobalConstant.TYPE, shortSMAType);
-		request.addParam(GlobalConstant.SYMBOL, symbol);
+		final String technicalIndicatorType = (String) request.getParam("TECHNICAL_INDICATOR_KEY");
+		final String shortSMAType = technicalIndicatorType.substring(0, technicalIndicatorType.indexOf(":"));
+		final String longSMAType = technicalIndicatorType.substring(technicalIndicatorType.indexOf(":") + 1);
+		final String symbol = (String) request.getParam("SYMBOL");
 
-		algorithmCruncherDao.getEarliestAlgTime(request, response);
-		long end = (long) response.getParam(GlobalConstant.ITEM);
+		final int daysToBackload = 50;
 
-		
+		final SMA shortSMA = new SMA();
+		shortSMA.setType(shortSMAType);
+		shortSMA.setSymbol(symbol);
+		smaSet.add(shortSMA);
+
+		final SMA longSMA = new SMA();
+		longSMA.setType(longSMAType);
+		longSMA.setSymbol(symbol);
+		smaSet.add(longSMA);
+
+		smaSet.stream().forEach(sma -> {
+
+			final List<AssetDay> assetDays = new ArrayList<AssetDay>();
+			final List<AssetMinute> assetMinutes = new ArrayList<AssetMinute>();
+
+			final String smaType = sma.getType();
+			final int smaPeriod = Integer.valueOf(smaType.substring(0, smaType.indexOf("-")));
+
+			request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+			request.addParam(GlobalConstant.TYPE, smaType);
+			request.addParam(GlobalConstant.SYMBOL, symbol);
+
+			algorithmCruncherDao.getEarliestAlgTime(request, response);
+
+			final long endingEpochSeconds = (long) response.getParam(GlobalConstant.ITEM);
+			final long startingEpochSeconds = endingEpochSeconds - (60 * 60 * 24 * (daysToBackload + smaPeriod + 1));
+
+			request.addParam("STARTING_EPOCH_SECONDS", startingEpochSeconds);
+			request.addParam("ENDING_EPOCH_SECONDS", endingEpochSeconds);
+			request.addParam(GlobalConstant.IDENTIFIER, "AssetDay");
+
+			try {
+				algorithmCruncherDao.items(request, response);
+			} catch (final Exception e) {
+				e.printStackTrace();
+			}
+
+			for (final Object o : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
+				assetDays.add((AssetDay) o);
+			}
+
+			assetDays.sort((a, b) -> (int) (a.getEpochSeconds() - b.getEpochSeconds()));
+
+			for (int i = assetDays.size() - 1; daysToBackload >= assetDays.size() - 1 - i; i--) {
+				final List<SMA> smaList = new ArrayList<SMA>();
+				final AssetDay assetDay = assetDays.get(i);
+
+				request.addParam(GlobalConstant.IDENTIFIER, "AssetMinute");
+				request.addParam("STARTING_EPOCH_SECONDS", assetDay.getEpochSeconds());
+				request.addParam("ENDING_EPOCH_SECONDS",
+						assetDay.getEpochSeconds() + (60 * 60 * 24));
+
+				request.addParam("CHECK_FOR_DUPLICATES", false);
+
+				try {
+					algorithmCruncherDao.items(request, response);
+				} catch (final Exception e) {
+					e.printStackTrace();
+				}
+
+				for (final Object o : ArrayList.class.cast(response.getParam(GlobalConstant.ITEMS))) {
+					assetMinutes.add((AssetMinute) o);
+				}
+
+				assetMinutes.stream()
+						.filter(assetMinute -> assetDay
+								.getEpochSeconds() == ZonedDateTime
+										.ofInstant(Instant.ofEpochSecond(assetMinute.getEpochSeconds()),
+												ZoneId.of("America/New_York"))
+										.truncatedTo(ChronoUnit.DAYS).toEpochSecond())
+						.forEach(assetMinute -> {
+
+							final SMA tempSMA = new SMA();
+							tempSMA.setType(smaType);
+							tempSMA.setSymbol(symbol);
+
+							request.addParam(GlobalConstant.ITEM, tempSMA);
+
+							request.addParam("SUCCESSFUL", false);
+							request.addParam("RECENT_ASSET_MINUTE", assetMinute);
+							request.addParam(GlobalConstant.ITEMS, assetDays);
+
+							configureSMADay(request, response);
+
+							if ((boolean) request.getParam("SUCCESSFUL")) {
+								smaList.add(tempSMA);
+							}
+
+						});
+
+				request.addParam(GlobalConstant.ITEMS, smaList);
+				algorithmCruncherDao.saveAll(request, response);
+			}
+
+		});
+
 	}
 
 	public void configureSMAMinute(final Request request, final Response response) {
@@ -811,19 +900,23 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			return;
 		}
 
-		request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-		request.addParam(GlobalConstant.TYPE, smaType);
-		request.addParam(GlobalConstant.SYMBOL, symbol);
-		request.addParam(GlobalConstant.EPOCHSECONDS,
-				assetMinutes.get(assetMinutes.size() - 1).getEpochSeconds());
-		try {
-			algorithmCruncherDao.itemCount(request, response);
-		} catch (final Exception e) {
-			e.printStackTrace();
-		}
+		if ((boolean) request.getParam("CHECK_FOR_DUPLICATES")) {
 
-		if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
-			return;
+			request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+			request.addParam(GlobalConstant.TYPE, smaType);
+			request.addParam(GlobalConstant.SYMBOL, symbol);
+			request.addParam(GlobalConstant.EPOCHSECONDS,
+					assetMinutes.get(i).getEpochSeconds());
+
+			try {
+				algorithmCruncherDao.itemCount(request, response);
+			} catch (final Exception e) {
+				e.printStackTrace();
+			}
+
+			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) > 0) {
+				return;
+			}
 		}
 
 		sma.setEpochSeconds(assetMinutes.get(i).getEpochSeconds());
@@ -964,6 +1057,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	public void configureSMADay(final Request request, final Response response) {
+		final StopWatch timer = new StopWatch();
+
 		final List<AssetDay> assetDays = new ArrayList<AssetDay>();
 		final List<BigDecimal> assetDayValues = new ArrayList<BigDecimal>();
 		final AssetMinute assetMinute = (AssetMinute) request.getParam("RECENT_ASSET_MINUTE");
@@ -987,20 +1082,26 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			return;
 		}
 
-		request.addParam(GlobalConstant.IDENTIFIER, "SMA");
-		request.addParam(GlobalConstant.TYPE, smaType);
-		request.addParam(GlobalConstant.SYMBOL, symbol);
-		request.addParam(GlobalConstant.EPOCHSECONDS,
-				assetMinute.getEpochSeconds());
+		if ((boolean) request.getParam("CHECK_FOR_DUPLICATES")) {
+			request.addParam(GlobalConstant.IDENTIFIER, "SMA");
+			request.addParam(GlobalConstant.TYPE, smaType);
+			request.addParam(GlobalConstant.SYMBOL, symbol);
+			request.addParam(GlobalConstant.EPOCHSECONDS,
+					assetMinute.getEpochSeconds());
 
-		try {
-			algorithmCruncherDao.itemCount(request, response);
-		} catch (final Exception e) {
-			e.printStackTrace();
-		}
+			timer.start();
+			try {
+				algorithmCruncherDao.itemCount(request, response);
+			} catch (final Exception e) {
+				e.printStackTrace();
+			}
 
-		if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) != 0) {
-			return;
+			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) != 0) {
+				return;
+			}
+			timer.stop();
+
+			System.out.println("ITEMCOUNT QUERY FOR SMA - " + timer.getLastTaskTimeMillis());
 		}
 
 		sma.setEpochSeconds(assetMinute.getEpochSeconds());
@@ -1152,5 +1253,4 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 		request.addParam("SUCCESSFUL", true);
 	}
-
 }

@@ -16,6 +16,12 @@ public abstract class BaseAlg extends BaseEntity {
     private String symbol = "";
 
     @Override
+    protected Object clone() throws CloneNotSupportedException {
+        // TODO Auto-generated method stub
+        return super.clone();
+    }
+
+    @Override
     public int hashCode() {
         final int prime = 31;
         int result = 1;
