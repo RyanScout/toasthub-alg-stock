@@ -778,8 +778,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		final String shortSMAType = technicalIndicatorType.substring(0, technicalIndicatorType.indexOf(":"));
 		final String longSMAType = technicalIndicatorType.substring(technicalIndicatorType.indexOf(":") + 1);
 		final String symbol = (String) request.getParam("SYMBOL");
-
-		final int daysToBackload = 50;
+		
+		final int daysToBackload = (int)request.getParam("DAYS_TO_BACKLOAD");
 
 		final SMA shortSMA = new SMA();
 		shortSMA.setType(shortSMAType);
@@ -833,6 +833,10 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				request.addParam("ENDING_EPOCH_SECONDS",
 						assetDay.getEpochSeconds() + (60 * 60 * 24));
 
+				if (assetDay.getEpochSeconds() + (60 * 60 * 24) > endingEpochSeconds) {
+					request.addParam("ENDING_EPOCH_SECONDS", endingEpochSeconds);
+				}
+
 				request.addParam("CHECK_FOR_DUPLICATES", false);
 
 				try {
@@ -872,9 +876,9 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						});
 
 				request.addParam(GlobalConstant.ITEMS, smaList);
-				algorithmCruncherDao.saveAll(request, response);
+				// algorithmCruncherDao.saveAll(request, response);
 			}
-
+			response.setStatus(Response.SUCCESS);
 		});
 
 	}
