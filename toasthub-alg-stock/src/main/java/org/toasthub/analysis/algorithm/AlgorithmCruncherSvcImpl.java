@@ -11,15 +11,11 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import javax.persistence.NoResultException;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StopWatch;
 import org.toasthub.analysis.model.AssetDay;
@@ -29,7 +25,6 @@ import org.toasthub.analysis.model.SMA;
 import org.toasthub.analysis.model.UBB;
 import org.toasthub.model.Configuration;
 import org.toasthub.model.Symbol;
-import org.toasthub.model.TechnicalIndicator;
 import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
@@ -51,11 +46,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	@Autowired
 	protected AlgorithmCruncherDao algorithmCruncherDao;
 
-	final AtomicBoolean tradeAnalysisJobRunning = new AtomicBoolean(false);
-
-	final AtomicBoolean databaseIsBackloaded = new AtomicBoolean(false);
-
-	public static final int START_OF_2022 = 1640998860;
+	public final int START_OF_2022 = 1640998860;
 
 	@Override
 	public void process(final Request request, final Response response) {
@@ -79,11 +70,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 				System.out.println("CryptoData Loaded");
 				backloadStockData(request, response);
 				System.out.println("StockData Loaded");
-				break;
-			case "LOAD":
-				loadStockData(request, response);
-				loadCryptoData(request, response);
-				loadAlgs(request, response);
 				break;
 			case "BACKLOAD_ALG":
 				backloadAlg(request, response);
@@ -136,8 +122,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		}
 	}
 
-	@EventListener(ApplicationReadyEvent.class)
-	public void dataBaseBackLoader() {
+	@Override
+	public void initializeDatabase() {
 		final Request request = new Request();
 		final Response response = new Response();
 
@@ -173,33 +159,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			e.printStackTrace();
 		}
 
-		databaseIsBackloaded.set(true);
-	}
-
-	@Scheduled(cron = "0 * * * * ?")
-	public void dataBaseUpdater() {
-
-		if (!databaseIsBackloaded.get()) {
-			System.out.println("Database is not backloaded yet");
-			return;
-		}
-
-		if (tradeAnalysisJobRunning.get()) {
-			System.out.println("Database is currently running skipping this time");
-			return;
-		}
-
-		new Thread(() -> {
-			tradeAnalysisJobRunning.set(true);
-
-			final Request request = new Request();
-			final Response response = new Response();
-
-			request.addParam("action", "LOAD");
-			process(request, response);
-
-			tradeAnalysisJobRunning.set(false);
-		}).start();
 	}
 
 	@Override
@@ -211,18 +170,18 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	public void backloadStockData(final Request request, final Response response) {
 		try {
 			for (final String stockName : Symbol.STOCKSYMBOLS) {
-				List<StockBar> stockBars;
+
+				System.out.println("Backloading stock data - " + stockName);
+
 				final ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York")).truncatedTo(ChronoUnit.DAYS);
 				ZonedDateTime first = ZonedDateTime
 						.ofInstant(Instant.ofEpochSecond(START_OF_2022), ZoneId.of("America/New_York"))
 						.truncatedTo(ChronoUnit.DAYS);
 				ZonedDateTime second = first.plusDays(1).minusMinutes(1);
-				AssetDay stockDay;
-				AssetMinute stockMinute;
-				Set<AssetMinute> stockMinutes;
-				final List<AssetDay> stockDays = new ArrayList<AssetDay>();
-				List<StockBar> stockBar;
 				while (second.isBefore(now)) {
+					List<StockBar> stockBars = null;
+					List<StockBar> stockBar = null;
+
 					try {
 						stockBars = alpacaAPI.stockMarketData().getBars(stockName,
 								first,
@@ -275,7 +234,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 					if (stockBar != null && stockBars != null) {
 
-						stockDay = new AssetDay();
+						final AssetDay stockDay = new AssetDay();
 						stockDay.setSymbol(stockName);
 						stockDay.setHigh(new BigDecimal(stockBar.get(0).getHigh()));
 						stockDay.setEpochSeconds(first.toEpochSecond());
@@ -284,10 +243,10 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						stockDay.setOpen(new BigDecimal(stockBar.get(0).getOpen()));
 						stockDay.setVolume(stockBar.get(0).getVolume());
 						stockDay.setVwap(new BigDecimal(stockBar.get(0).getVwap()));
-						stockMinutes = new LinkedHashSet<AssetMinute>();
+						final LinkedHashSet<AssetMinute> stockMinutes = new LinkedHashSet<AssetMinute>();
 
 						for (int i = 0; i < stockBars.size(); i++) {
-							stockMinute = new AssetMinute();
+							final AssetMinute stockMinute = new AssetMinute();
 							stockMinute.setAssetDay(stockDay);
 							stockMinute.setSymbol(stockName);
 							stockMinute.setEpochSeconds(stockBars.get(i).getTimestamp().toEpochSecond());
@@ -298,15 +257,20 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						}
 
 						stockDay.setAssetMinutes(stockMinutes);
-						stockDays.add(stockDay);
+						request.addParam(GlobalConstant.ITEM, stockDay);
+
+						final StopWatch timer = new StopWatch();
+
+						timer.start();
+						algorithmCruncherDao.save(request, response);
+						timer.stop();
+						System.out.println(
+								"Saving this stock day took " + timer.getLastTaskTimeMillis() + " milliseconds");
 					}
 
 					first = first.plusDays(1);
 					second = second.plusDays(1);
 				}
-
-				request.addParam(GlobalConstant.ITEMS, stockDays);
-				algorithmCruncherDao.saveAll(request, response);
 			}
 
 		} catch (final Exception e) {
@@ -320,18 +284,17 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			exchanges.add(Exchange.COINBASE);
 
 			for (final String cryptoName : Symbol.CRYPTOSYMBOLS) {
-				List<CryptoBar> cryptoBars;
+
+				System.out.println("Backloading crypyo data - " + cryptoName);
+
 				final ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York"));
 				ZonedDateTime first = ZonedDateTime
 						.ofInstant(Instant.ofEpochSecond(START_OF_2022), ZoneId.of("America/New_York"))
 						.truncatedTo(ChronoUnit.DAYS);
 				ZonedDateTime second = first.plusDays(1);
-				AssetDay cryptoDay;
-				AssetMinute cryptoMinute;
-				Set<AssetMinute> cryptoMinutes;
-				final List<AssetDay> cryptoDays = new ArrayList<AssetDay>();
-				List<CryptoBar> cryptoBar;
 				while (second.isBefore(now)) {
+					List<CryptoBar> cryptoBars = null;
+					List<CryptoBar> cryptoBar = null;
 					try {
 						cryptoBars = alpacaAPI.cryptoMarketData().getBars(cryptoName,
 								exchanges,
@@ -381,7 +344,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 					}
 					if (cryptoBar != null && cryptoBars != null) {
 
-						cryptoDay = new AssetDay();
+						final AssetDay cryptoDay = new AssetDay();
 						cryptoDay.setSymbol(cryptoName);
 						cryptoDay.setHigh(new BigDecimal(cryptoBar.get(0).getHigh()));
 						cryptoDay.setEpochSeconds(first.toEpochSecond());
@@ -390,10 +353,10 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						cryptoDay.setOpen(new BigDecimal(cryptoBar.get(0).getOpen()));
 						cryptoDay.setVolume(cryptoBar.get(0).getVolume().longValue());
 						cryptoDay.setVwap(new BigDecimal(cryptoBar.get(0).getVwap()));
-						cryptoMinutes = new LinkedHashSet<AssetMinute>();
+						final Set<AssetMinute> cryptoMinutes = new LinkedHashSet<AssetMinute>();
 
 						for (int i = 0; i < cryptoBars.size(); i++) {
-							cryptoMinute = new AssetMinute();
+							final AssetMinute cryptoMinute = new AssetMinute();
 							cryptoMinute.setAssetDay(cryptoDay);
 							cryptoMinute.setSymbol(cryptoName);
 							cryptoMinute.setEpochSeconds(cryptoBars.get(i).getTimestamp().toEpochSecond());
@@ -404,15 +367,21 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						}
 
 						cryptoDay.setAssetMinutes(cryptoMinutes);
-						cryptoDays.add(cryptoDay);
+
+						request.addParam(GlobalConstant.ITEM, cryptoDay);
+
+						final StopWatch timer = new StopWatch();
+
+						timer.start();
+						algorithmCruncherDao.save(request, response);
+						timer.stop();
+						System.out.println(
+								"Saving this crypto day took " + timer.getLastTaskTimeMillis() + " milliseconds");
 					}
 
 					first = first.plusDays(1);
 					second = second.plusDays(1);
 				}
-
-				request.addParam(GlobalConstant.ITEMS, cryptoDays);
-				algorithmCruncherDao.saveAll(request, response);
 			}
 
 		} catch (final Exception e) {
@@ -420,6 +389,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		}
 	}
 
+	@Override
 	public void loadStockData(final Request request, final Response response) {
 		try {
 			for (final String stockName : Symbol.STOCKSYMBOLS) {
@@ -497,6 +467,7 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		}
 	}
 
+	@Override
 	public void loadCryptoData(final Request request, final Response response) {
 		try {
 			final Collection<Exchange> exchanges = new ArrayList<Exchange>();
@@ -573,7 +544,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		}
 	}
 
-	public void loadAlgs(final Request request, final Response response) {
+	@Override
+	public void loadAlgorithmData(final Request request, final Response response) {
 		request.addParam(GlobalConstant.IDENTIFIER, "TECHNICAL_INDICATOR");
 		request.addParam("CHECK_FOR_DUPLICATES", true);
 
@@ -757,18 +729,21 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	public void backloadAlg(final Request request, final Response response) {
-		switch ((String) request.getParam("TECHNICAL_INDICATOR_TYPE")) {
-			case TechnicalIndicator.GOLDENCROSS:
-				backloadSMA(request, response);
-				break;
-			case TechnicalIndicator.LOWERBOLLINGERBAND:
-				break;
-			case TechnicalIndicator.UPPERBOLLINGERBAND:
-				break;
-			default:
-				System.out.println("INVALID TECHINCAL INDICATOR TYPE AT ALGORITHMCRUCNHERSVC BACKLOADALG");
-				break;
-		}
+		// switch ((String) request.getParam("TECHNICAL_INDICATOR_TYPE")) {
+		// case TechnicalIndicator.GOLDENCROSS:
+		// backloadSMA(request, response);
+		// break;
+		// case TechnicalIndicator.LOWERBOLLINGERBAND:
+		// break;
+		// case TechnicalIndicator.UPPERBOLLINGERBAND:
+		// break;
+		// default:
+		// System.out.println("INVALID TECHINCAL INDICATOR TYPE AT ALGORITHMCRUCNHERSVC
+		// BACKLOADALG");
+		// response.setStatus(Response.ERROR);
+		// return;
+		// }
+		response.setStatus(Response.SUCCESS);
 	}
 
 	public void backloadSMA(final Request request, final Response response) {
@@ -778,8 +753,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 		final String shortSMAType = technicalIndicatorType.substring(0, technicalIndicatorType.indexOf(":"));
 		final String longSMAType = technicalIndicatorType.substring(technicalIndicatorType.indexOf(":") + 1);
 		final String symbol = (String) request.getParam("SYMBOL");
-		
-		final int daysToBackload = (int)request.getParam("DAYS_TO_BACKLOAD");
+
+		final int daysToBackload = (int) request.getParam("DAYS_TO_BACKLOAD");
 
 		final SMA shortSMA = new SMA();
 		shortSMA.setType(shortSMAType);
@@ -876,9 +851,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 						});
 
 				request.addParam(GlobalConstant.ITEMS, smaList);
-				// algorithmCruncherDao.saveAll(request, response);
+				algorithmCruncherDao.saveAll(request, response);
 			}
-			response.setStatus(Response.SUCCESS);
 		});
 
 	}
@@ -1061,8 +1035,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	public void configureSMADay(final Request request, final Response response) {
-		final StopWatch timer = new StopWatch();
-
 		final List<AssetDay> assetDays = new ArrayList<AssetDay>();
 		final List<BigDecimal> assetDayValues = new ArrayList<BigDecimal>();
 		final AssetMinute assetMinute = (AssetMinute) request.getParam("RECENT_ASSET_MINUTE");
@@ -1093,7 +1065,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			request.addParam(GlobalConstant.EPOCHSECONDS,
 					assetMinute.getEpochSeconds());
 
-			timer.start();
 			try {
 				algorithmCruncherDao.itemCount(request, response);
 			} catch (final Exception e) {
@@ -1103,9 +1074,6 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 			if ((Long) response.getParam(GlobalConstant.ITEMCOUNT) != 0) {
 				return;
 			}
-			timer.stop();
-
-			System.out.println("ITEMCOUNT QUERY FOR SMA - " + timer.getLastTaskTimeMillis());
 		}
 
 		sma.setEpochSeconds(assetMinute.getEpochSeconds());
