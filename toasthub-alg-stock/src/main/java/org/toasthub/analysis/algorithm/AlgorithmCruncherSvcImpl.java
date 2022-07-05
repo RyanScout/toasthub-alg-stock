@@ -730,19 +730,19 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 	}
 
 	public void backloadAlg(final Request request, final Response response) {
-		// switch ((String) request.getParam("TECHNICAL_INDICATOR_TYPE")) {
-		// 	case TechnicalIndicator.GOLDENCROSS:
-		// 		backloadSMA(request, response);
-		// 		break;
-		// 	case TechnicalIndicator.LOWERBOLLINGERBAND:
-		// 		break;
-		// 	case TechnicalIndicator.UPPERBOLLINGERBAND:
-		// 		break;
-		// 	default:
-		// 		System.out.println("INVALID TECHINCAL INDICATOR TYPE AT ALGORITHMCRUCNHERSVC BACKLOADALG");
-		// 		response.setStatus(Response.ERROR);
-		// 		return;
-		// }
+		switch ((String) request.getParam("TECHNICAL_INDICATOR_TYPE")) {
+			case TechnicalIndicator.GOLDENCROSS:
+				backloadSMA(request, response);
+				break;
+			case TechnicalIndicator.LOWERBOLLINGERBAND:
+				break;
+			case TechnicalIndicator.UPPERBOLLINGERBAND:
+				break;
+			default:
+				System.out.println("INVALID TECHINCAL INDICATOR TYPE AT ALGORITHMCRUCNHERSVC BACKLOADALG");
+				response.setStatus(Response.ERROR);
+				return;
+		}
 		response.setStatus(Response.SUCCESS);
 	}
 
