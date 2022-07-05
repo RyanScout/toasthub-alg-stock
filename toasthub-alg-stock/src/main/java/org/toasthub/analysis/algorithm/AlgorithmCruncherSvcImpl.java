@@ -25,6 +25,7 @@ import org.toasthub.analysis.model.SMA;
 import org.toasthub.analysis.model.UBB;
 import org.toasthub.model.Configuration;
 import org.toasthub.model.Symbol;
+import org.toasthub.model.TechnicalIndicator;
 import org.toasthub.utils.GlobalConstant;
 import org.toasthub.utils.Request;
 import org.toasthub.utils.Response;
@@ -730,18 +731,17 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 	public void backloadAlg(final Request request, final Response response) {
 		// switch ((String) request.getParam("TECHNICAL_INDICATOR_TYPE")) {
-		// case TechnicalIndicator.GOLDENCROSS:
-		// backloadSMA(request, response);
-		// break;
-		// case TechnicalIndicator.LOWERBOLLINGERBAND:
-		// break;
-		// case TechnicalIndicator.UPPERBOLLINGERBAND:
-		// break;
-		// default:
-		// System.out.println("INVALID TECHINCAL INDICATOR TYPE AT ALGORITHMCRUCNHERSVC
-		// BACKLOADALG");
-		// response.setStatus(Response.ERROR);
-		// return;
+		// 	case TechnicalIndicator.GOLDENCROSS:
+		// 		backloadSMA(request, response);
+		// 		break;
+		// 	case TechnicalIndicator.LOWERBOLLINGERBAND:
+		// 		break;
+		// 	case TechnicalIndicator.UPPERBOLLINGERBAND:
+		// 		break;
+		// 	default:
+		// 		System.out.println("INVALID TECHINCAL INDICATOR TYPE AT ALGORITHMCRUCNHERSVC BACKLOADALG");
+		// 		response.setStatus(Response.ERROR);
+		// 		return;
 		// }
 		response.setStatus(Response.SUCCESS);
 	}
@@ -799,7 +799,10 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 			assetDays.sort((a, b) -> (int) (a.getEpochSeconds() - b.getEpochSeconds()));
 
+			final StopWatch timer = new StopWatch();
+
 			for (int i = assetDays.size() - 1; daysToBackload >= assetDays.size() - 1 - i; i--) {
+				timer.start();
 				final List<SMA> smaList = new ArrayList<SMA>();
 				final AssetDay assetDay = assetDays.get(i);
 
@@ -852,6 +855,8 @@ public class AlgorithmCruncherSvcImpl implements AlgorithmCruncherSvc {
 
 				request.addParam(GlobalConstant.ITEMS, smaList);
 				algorithmCruncherDao.saveAll(request, response);
+				timer.stop();
+				System.out.println("Loading SMA day took " + timer.getLastTaskTimeMillis() + "milliseconds");
 			}
 		});
 
