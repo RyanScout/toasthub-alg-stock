@@ -128,7 +128,7 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 		}
 
 		final String queryStr = "SELECT DISTINCT x FROM " + x
-				+ " AS x WHERE x.symbol =:symbol AND x.epochSeconds>:startingEpochSeconds AND x.epochSeconds <:endingEpochSeconds";
+				+ " AS x WHERE x.symbol =:symbol AND x.epochSeconds >=: startingEpochSeconds AND x.epochSeconds <=:endingEpochSeconds";
 
 		final Query query = entityManager.createQuery(queryStr);
 		query.setParameter("symbol", request.getParam(GlobalConstant.SYMBOL));
@@ -414,13 +414,41 @@ public class AlgorithmCruncherDaoImpl implements AlgorithmCruncherDao {
 			return;
 		}
 
-		String queryStr = "SELECT MIN(x.epochSeconds) FROM " + x + " x WHERE x.symbol = : symbol AND x.type=:type";
+		String queryStr = "SELECT DISTINCT x.epochSeconds FROM " + x
+				+ " x WHERE x.symbol =: symbol AND x.type =:type ORDER BY x.epochSeconds ASC";
 
-		final Query query = entityManager.createQuery(queryStr);
-		query.setParameter("type", request.getParam(GlobalConstant.TYPE));
-		query.setParameter("symbol", request.getParam(GlobalConstant.SYMBOL));
+		final Query query = entityManager.createQuery(queryStr)
+				.setParameter("type", request.getParam(GlobalConstant.TYPE))
+				.setParameter("symbol", request.getParam(GlobalConstant.SYMBOL))
+				.setMaxResults(1);
 
 		response.addParam(GlobalConstant.ITEM, query.getSingleResult());
 
+	}
+
+	@Override
+	public void getTechicalIndicator(Request request, Response response) {
+		if (request.containsParam(GlobalConstant.ITEMID) && (request.getParam(GlobalConstant.ITEMID) != null)) {
+			final String queryStr = "SELECT DISTINCT x FROM TechnicalIndicator AS x WHERE x.id =:id";
+			final Query query = entityManager.createQuery(queryStr);
+
+			if (request.getParam(GlobalConstant.ITEMID) instanceof Integer) {
+				query.setParameter("id", Long.valueOf((Integer) request.getParam(GlobalConstant.ITEMID)));
+			}
+
+			if (request.getParam(GlobalConstant.ITEMID) instanceof Long) {
+				query.setParameter("id", (Long) request.getParam(GlobalConstant.ITEMID));
+			}
+
+			if (request.getParam(GlobalConstant.ITEMID) instanceof String) {
+				query.setParameter("id", Long.valueOf((String) request.getParam(GlobalConstant.ITEMID)));
+			}
+
+			final TechnicalIndicator t = TechnicalIndicator.class.cast(query.getSingleResult());
+
+			response.addParam(GlobalConstant.ITEM, t);
+
+			return;
+		}
 	}
 }
